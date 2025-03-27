@@ -43,12 +43,7 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
                 print("External client connected (likely MCP server)")
             
             async for message in websocket:
-                data = json.loads(message)
-                print(f"Mensaje recibido: {data}")
-                print(f"Tipo de mensaje: {data.get('type')}")
-                print(f"Cliente notebook presente: {notebook_client is not None}")
-                print(f"Número de clientes externos: {len(external_clients)}")
-                
+                data = json.loads(message)                
                 # Handle different message types
                 if data.get("type") in [
                     "insert_and_execute_cell", "save_notebook", "get_cells_info", 
