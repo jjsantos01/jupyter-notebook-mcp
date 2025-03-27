@@ -6,7 +6,9 @@ to enable MCP integration with LLMs
 import asyncio
 import nest_asyncio
 import json
+import os
 from IPython.display import display, HTML
+
 # Apply nest_asyncio to allow async code in IPython
 nest_asyncio.apply()
 
@@ -42,25 +44,37 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
             
             async for message in websocket:
                 data = json.loads(message)
+                print(f"Mensaje recibido: {data}")
+                print(f"Tipo de mensaje: {data.get('type')}")
+                print(f"Cliente notebook presente: {notebook_client is not None}")
+                print(f"Número de clientes externos: {len(external_clients)}")
                 
                 # Handle different message types
-                if data.get("type") == "execute":
-                    # Forward code execution request to notebook client
+                if data.get("type") in [
+                    "insert_and_execute_cell", "save_notebook", "get_cells_info", 
+                    "get_notebook_info", "run_cell", "run_all_cells"
+                ]:
+                    # Forward notebook management requests to notebook client
                     if notebook_client:
+                        print(f"Reenviando mensaje tipo '{data.get('type')}' al cliente notebook")
                         await notebook_client.send(json.dumps(data))
                     else:
                         # No notebook client connected
                         error_msg = {"type": "error", "message": "No notebook client connected", "request_id": data.get("request_id")}
                         await websocket.send(json.dumps(error_msg))
                 
-                elif data.get("type") == "result":
-                    # Forward execution results to external clients
+                elif data.get("type") in [
+                    "insert_cell_result", "save_result", "cells_info_result", 
+                    "notebook_info_result", "run_cell_result", "run_all_cells_result"
+                ]:
+                    # Forward results to external clients
+                    print(f"Reenviando resultado tipo '{data.get('type')}' a clientes externos")
                     for client in external_clients:
                         if client != websocket:  # Don't send back to originator
                             await client.send(json.dumps(data))
                 
                 else:
-                    print(f"Unknown message type: {data.get('type')}")
+                    print(f"Tipo de mensaje desconocido: {data.get('type')}")
         
         except Exception as e:
             print(f"WebSocket error: {str(e)}")
@@ -69,8 +83,10 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
             # Clean up when connection is closed
             if websocket == notebook_client:
                 notebook_client = None
+                print("Cliente notebook desconectado")
             elif websocket in external_clients:
                 external_clients.remove(websocket)
+                print("Cliente externo desconectado")
     
     # Start WebSocket server
     async def start_server(port, max_attempts=max_port_attempts):
@@ -101,10 +117,23 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
         # If we get here, we've exhausted our attempts
         raise OSError(f"Could not bind to any port after {max_attempts} attempts. Last error: {str(last_error)}")
     
-    # Client-side JavaScript to handle WebSocket connections
-    with open("client.js", encoding="utf8") as jsfile:
-        script_content = jsfile.read().strip() % ws_port
-        client_js = f"<script>{script_content}</script>"
+    # Read the client.js file
+    client_js_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "client.js")
+    try:
+        with open(client_js_path, "r") as f:
+            client_js_content = f.read()
+        
+        # Format with port placeholder
+        client_js = f"""
+        <script>
+        {client_js_content}
+        </script>
+        """.replace("ws://localhost:%s", f"ws://localhost:{ws_port}")
+        print(f"Loaded client.js from {client_js_path}")
+    except FileNotFoundError:
+        print(f"Warning: client.js not found at {client_js_path}")
+        print("Please ensure client.js is in the same directory as this script")
+        raise
     
     # Initialize global variables
     global notebook_client, external_clients
@@ -132,6 +161,15 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
             <li>Run: <code>python jupyter_mcp_server.py --ws-port {actual_port}</code></li>
             <li>Make sure the MCP server is configured to connect to ws://localhost:{actual_port}</li>
         </ol>
+        <p>Available notebook management functions:</p>
+        <ul>
+            <li>insert_and_execute_cell: Insertar y ejecutar una celda</li>
+            <li>save_notebook: Guardar notebook</li>
+            <li>get_cells_info: Obtener información de celdas</li>
+            <li>get_notebook_info: Obtener información del notebook</li>
+            <li>run_cell: Ejecutar una celda específica</li>
+            <li>run_all_cells: Ejecutar todas las celdas</li>
+        </ul>
     </div>
     """))
     

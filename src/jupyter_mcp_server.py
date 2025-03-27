@@ -62,7 +62,11 @@ class JupyterWebSocketClient:
                 data = json.loads(message)
                 
                 # Handle different message types
-                if data.get("type") == "result":
+                if data.get("type") in [
+                    "save_result", "cells_info_result", 
+                    "insert_cell_result", "notebook_info_result",
+                    "run_cell_result", "run_all_cells_result",
+                ]:
                     request_id = data.get("request_id")
                     if request_id in self.pending_requests:
                         # Resolve the future with the result
@@ -83,28 +87,29 @@ class JupyterWebSocketClient:
             logger.error(f"Error in WebSocket listener: {str(e)}")
             self.connected = False
     
-    async def execute_code(self, code):
-        """Execute code in the Jupyter notebook and get the result"""
+    async def send_request(self, request_type, **kwargs):
+        """Send a request to the Jupyter notebook and get the result"""
         if not self.connected:
             success = await self.connect()
             if not success:
                 raise Exception("Could not connect to Jupyter WebSocket server")
         
         # Create a unique request ID
-        request_id = f"req_{id(code)}_{asyncio.get_event_loop().time()}"
+        request_id = f"req_{id(request_type)}_{asyncio.get_event_loop().time()}"
         
         # Create a future to wait for the result
         future = asyncio.get_event_loop().create_future()
         self.pending_requests[request_id] = future
         
-        # Send the execute request
-        execute_request = {
-            "type": "execute",
-            "code": code,
-            "request_id": request_id
+        # Prepare the request
+        request = {
+            "type": request_type,
+            "request_id": request_id,
+            **kwargs
         }
         
-        await self.websocket.send(json.dumps(execute_request))
+        # Send the request
+        await self.websocket.send(json.dumps(request))
         
         # Wait for the result with a timeout
         try:
@@ -112,8 +117,33 @@ class JupyterWebSocketClient:
             return result
         except asyncio.TimeoutError:
             self.pending_requests.pop(request_id, None)
-            raise Exception("Execution timed out after 60 seconds")
-
+            raise Exception(f"Request {request_type} timed out after 60 seconds")
+    
+    async def insert_and_execute_cell(self, cell_type="code", position=0, content=""):
+        """Insert a cell at the specified position"""
+        return await self.send_request(
+            "insert_and_execute_cell", 
+            cell_type=cell_type, 
+            position=position, 
+            content=content,
+        )
+        
+    async def save_notebook(self):
+        """Save the current notebook"""
+        return await self.send_request("save_notebook")
+    
+    async def get_cells_info(self):
+        """Get information about all cells in the notebook"""
+        return await self.send_request("get_cells_info")
+    
+    async def get_notebook_info(self):
+        """Get information about the current notebook"""
+        return await self.send_request("get_notebook_info")
+        
+    async def run_all_cells(self):
+        """Run all cells in the notebook"""
+        return await self.send_request("run_all_cells")
+    
 # Singleton client instance
 _jupyter_client: Optional[JupyterWebSocketClient] = None
 
@@ -173,58 +203,46 @@ async def ping(ctx: Context) -> str:
         return json.dumps({"status": "error", "message": str(e)})
 
 @mcp.tool()
-async def execute_notebook_code(ctx: Context, code: str) -> str:
-    """Execute code in the Jupyter notebook and return the result"""
+async def insert_and_execute_cell(ctx: Context, cell_type: str = "code", position: int = 0, content: str = "") -> str:
+    """Insert a cell at the specified position and execute it. 
+    If code cell, it will be executed.
+    If markdown cell, it will be rendered.
+    
+    Args:
+        cell_type: The type of cell ('code' or 'markdown')
+        position: The position to insert the cell at
+        content: The content of the cell
+    """
     try:
         client = await get_jupyter_client()
-        result = await client.execute_code(code)
-        
-        # Format the output for display
-        output_data = result.get("output", [])
-        formatted_output = []
-        
-        for output in output_data:
-            output_type = output.get("output_type")
-            
-            if output_type == "stream":
-                # Text output
-                formatted_output.append({
-                    "type": "text",
-                    "content": output.get("text", "")
-                })
-            elif output_type == "execute_result" or output_type == "display_data":
-                # Result data - could be text, HTML, image, etc.
-                data = output.get("data", {})
-                if "text/html" in data:
-                    formatted_output.append({
-                        "type": "html",
-                        "content": data["text/html"]
-                    })
-                elif "image/png" in data:
-                    formatted_output.append({
-                        "type": "image",
-                        "format": "png",
-                        "data": data["image/png"]
-                    })
-                elif "text/plain" in data:
-                    formatted_output.append({
-                        "type": "text",
-                        "content": data["text/plain"]
-                    })
-            elif output_type == "error":
-                # Error output
-                formatted_output.append({
-                    "type": "error",
-                    "ename": output.get("ename", "Error"),
-                    "evalue": output.get("evalue", ""),
-                    "traceback": output.get("traceback", [])
-                })
-        
+        result = await client.insert_and_execute_cell(cell_type, position, content)
+        return json.dumps(result, indent=2)
+    except Exception as e:
         return json.dumps({
-            "status": "success",
-            "cell_id": result.get("cell_id"),
-            "output": formatted_output
+            "status": "error",
+            "message": str(e)
         }, indent=2)
+
+@mcp.tool()
+async def save_notebook(ctx: Context) -> str:
+    """Save the current Jupyter notebook"""
+    try:
+        client = await get_jupyter_client()
+        result = await client.save_notebook()
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "status": "error",
+            "message": str(e)
+        }, indent=2)
+
+@mcp.tool()
+async def get_cells_info(ctx: Context) -> str:
+    """Get information about all cells in the notebook"""
+    try:
+        client = await get_jupyter_client()
+        result = await client.get_cells_info()
+        return json.dumps(result, indent=2)
     except Exception as e:
         return json.dumps({
             "status": "error",
@@ -234,47 +252,39 @@ async def execute_notebook_code(ctx: Context, code: str) -> str:
 @mcp.tool()
 async def get_notebook_info(ctx: Context) -> str:
     """Get information about the current Jupyter notebook"""
-    code = """
-import json
-from IPython import get_ipython
-from IPython.display import display, JSON
-
-# Get notebook path
-try:
-    notebook_path = get_ipython().kernel.session.config.get('IPKernelApp', {}).get('connection_file', '')
-except:
-    notebook_path = "Unknown"
-
-# Get kernel info
-kernel_info = get_ipython().kernel.shell.user_ns.get('_dh', ['Unknown'])
-
-# Get Python version info
-import sys
-python_info = {
-    "version": sys.version,
-    "executable": sys.executable,
-    "platform": sys.platform
-}
-
-# Get installed packages
-import pkg_resources
-installed_packages = [{"name": d.project_name, "version": d.version} 
-                    for d in pkg_resources.working_set]
-
-# Output as JSON
-notebook_info = {
-    "notebook_path": notebook_path,
-    "kernel_info": kernel_info,
-    "python_info": python_info,
-    "installed_packages": installed_packages[:20]  # Limit to first 20 packages
-}
-
-notebook_info
-"""
-    
     try:
         client = await get_jupyter_client()
-        result = await client.execute_code(code)
+        result = await client.get_notebook_info()
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "status": "error",
+            "message": str(e)
+        }, indent=2)
+
+@mcp.tool()
+async def run_cell(ctx: Context, index: int) -> str:
+    """Run a specific cell by its index
+    
+    Args:
+        index: The index of the cell to run
+    """
+    try:
+        client = await get_jupyter_client()
+        result = await client.send_request("run_cell", index=index)
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "status": "error",
+            "message": str(e)
+        }, indent=2)
+
+@mcp.tool()
+async def run_all_cells(ctx: Context) -> str:
+    """Run all cells in the notebook"""
+    try:
+        client = await get_jupyter_client()
+        result = await client.run_all_cells()
         return json.dumps(result, indent=2)
     except Exception as e:
         return json.dumps({
