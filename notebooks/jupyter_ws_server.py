@@ -150,21 +150,6 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
     <div style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; margin: 10px 0;">
         <h3>Jupyter MCP Integration Setup Complete</h3>
         <p>WebSocket server is running on port {actual_port}</p>
-        <p>To connect your MCP server:</p>
-        <ol>
-            <li>Start the Jupyter MCP server in a separate terminal window</li>
-            <li>Run: <code>python jupyter_mcp_server.py --ws-port {actual_port}</code></li>
-            <li>Make sure the MCP server is configured to connect to ws://localhost:{actual_port}</li>
-        </ol>
-        <p>Available notebook management functions:</p>
-        <ul>
-            <li>insert_and_execute_cell: Insertar y ejecutar una celda</li>
-            <li>save_notebook: Guardar notebook</li>
-            <li>get_cells_info: Obtener información de celdas</li>
-            <li>get_notebook_info: Obtener información del notebook</li>
-            <li>run_cell: Ejecutar una celda específica</li>
-            <li>run_all_cells: Ejecutar todas las celdas</li>
-        </ul>
     </div>
     """))
     
