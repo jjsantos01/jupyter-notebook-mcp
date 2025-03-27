@@ -51,7 +51,6 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
                 ]:
                     # Forward notebook management requests to notebook client
                     if notebook_client:
-                        print(f"Reenviando mensaje tipo '{data.get('type')}' al cliente notebook")
                         await notebook_client.send(json.dumps(data))
                     else:
                         # No notebook client connected
@@ -63,7 +62,6 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
                     "notebook_info_result", "run_cell_result", "run_all_cells_result"
                 ]:
                     # Forward results to external clients
-                    print(f"Reenviando resultado tipo '{data.get('type')}' a clientes externos")
                     for client in external_clients:
                         if client != websocket:  # Don't send back to originator
                             await client.send(json.dumps(data))
