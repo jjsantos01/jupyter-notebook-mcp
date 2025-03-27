@@ -7,7 +7,6 @@ import asyncio
 import nest_asyncio
 import json
 from IPython.display import display, HTML
-
 # Apply nest_asyncio to allow async code in IPython
 nest_asyncio.apply()
 
@@ -103,64 +102,9 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
         raise OSError(f"Could not bind to any port after {max_attempts} attempts. Last error: {str(last_error)}")
     
     # Client-side JavaScript to handle WebSocket connections
-    client_js = """
-    <script>
-    (function(){
-        // Connect to WebSocket server
-        var ws = new WebSocket("ws://localhost:%s");
-        
-        ws.onopen = function() {
-            // Identify as notebook client
-            ws.send(JSON.stringify({ role: "notebook" }));
-            console.log("Connected to WebSocket server as notebook client");
-        };
-        
-        ws.onmessage = function(event) {
-            var data = JSON.parse(event.data);
-            if (data.type === "execute") {
-                var code = data.code;
-                var request_id = data.request_id;
-                
-                // Execute code in a new cell
-                var cell = Jupyter.notebook.insert_cell_at_bottom();
-                cell.set_text(code);
-                
-                // Generate a cell_id if not available
-                var cell_id = cell.cell_id || Date.now().toString();
-                
-                // Function to send execution results back
-                var sendResult = function() {
-                    var outputs = cell.output_area.outputs;
-                    var resultMsg = {
-                        type: "result",
-                        request_id: request_id,
-                        cell_id: cell_id,
-                        output: outputs
-                    };
-                    ws.send(JSON.stringify(resultMsg));
-                    console.log("Execution result sent");
-                };
-                
-                // Listen for execution completion
-                cell.events.one('finished_execute.CodeCell', function() {
-                    sendResult();
-                });
-                
-                // Execute the cell
-                cell.execute();
-            }
-        };
-        
-        ws.onerror = function(error) {
-            console.error("WebSocket error:", error);
-        };
-        
-        ws.onclose = function() {
-            console.log("WebSocket connection closed");
-        };
-    })();
-    </script>
-    """ % ws_port
+    with open("client.js", encoding="utf8") as jsfile:
+        script_content = jsfile.read().strip() % ws_port
+        client_js = f"<script>{script_content}</script>"
     
     # Initialize global variables
     global notebook_client, external_clients
