@@ -250,7 +250,7 @@
         var request_id = data.request_id;
         
         try {
-            Jupyter.notebook.execute_all_cells();
+            Jupyter.notebook.restart_run_all();
             
             var response = {
                 type: "run_all_cells_result",

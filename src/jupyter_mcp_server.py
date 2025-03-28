@@ -290,7 +290,8 @@ async def run_cell(ctx: Context, index: int) -> str:
 
 @mcp.tool()
 async def run_all_cells(ctx: Context) -> str:
-    """Run all cells in the notebook"""
+    """Restart and run all cells in the notebook.
+    You need to wait for user approval"""
     try:
         client = await get_jupyter_client()
         result = await client.run_all_cells()
