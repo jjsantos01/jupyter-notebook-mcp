@@ -31,8 +31,11 @@
             case "run_all_cells":
                 handleRunAllCells(data);
                 break;
-            case "get_cell_output":
-                handleGetCellOutput(data);
+            case "get_cell_text_output":
+                handleGetCellTextOutput(data);
+                break;
+            case "get_cell_image_output":
+                handleGetCellImageOutput(data);
                 break;
             default:
                 console.warn("Unknown message type:", data.type);
@@ -52,7 +55,7 @@
             
             // Function to capture and send output with truncation
             var sendResult = function() {
-                var outputResult = extractCellOutput(cell, 1500);
+                var outputResult = extractCellOutputContent(cell, 1500);
                 
                 // Prepare response
                 var response = {
@@ -62,7 +65,8 @@
                     cell_id: cell.cell_id || "cell_" + position,
                     position: position,
                     output_text: outputResult.text,
-                    is_truncated: outputResult.is_truncated
+                    is_truncated: outputResult.is_truncated,
+                    has_images: outputResult.images.length > 0,
                 };
                 
                 ws.send(JSON.stringify(response));
@@ -211,14 +215,17 @@
             
             // Function to send execution results back
             var sendResult = function() {
-                var outputs = cell.output_area.outputs;
+                var outputs = extractCellOutputContent(cell, 1500);
+
                 var resultMsg = {
                     type: "run_cell_result",
                     request_id: request_id,
                     status: "success",
                     cell_id: cell_id,
                     index: index,
-                    output: outputs
+                    output_text: outputs.text,
+                    is_truncated: outputs.is_text_truncated,
+                    has_images: outputs.images.length > 0,
                 };
                 ws.send(JSON.stringify(resultMsg));
                 console.log("Cell execution result sent");
@@ -274,13 +281,12 @@
     }
 
     // Handle getting output from a specific cell
-    function handleGetCellOutput(data) {
+    function handleGetCellTextOutput(data) {
         var request_id = data.request_id;
         var index = data.index || 0;
         var maxLength = data.max_length || 1500;
         
         try {
-            // Get the cell at the specified index
             var cells = Jupyter.notebook.get_cells();
             
             if (index < 0 || index >= cells.length) {
@@ -288,23 +294,26 @@
             }
             
             var cell = cells[index];
-            var outputResult = extractCellOutput(cell, maxLength);
+            var outputContent = extractCellOutputContent(cell, maxLength);
             
             var response = {
-                type: "get_cell_output_result",
+                type: "get_cell_text_output_result",
                 request_id: request_id,
                 status: "success",
                 cell_id: cell.cell_id || "cell_" + index,
                 index: index,
-                output_text: outputResult.text,
-                is_truncated: outputResult.is_truncated
+                output_text: outputContent.text,
+                is_truncated: outputContent.is_text_truncated,
+                has_images: outputContent.images.length > 0
             };
             
             ws.send(JSON.stringify(response));
-            console.log("Cell output retrieved for index " + index + (outputResult.is_truncated ? " (output truncated)" : ""));
+            console.log("Cell output retrieved for index " + index + 
+                    (outputContent.is_text_truncated ? " (output truncated)" : "") + 
+                    (outputContent.images.length > 0 ? " (contains images)" : ""));
         } catch (error) {
             var errorResponse = {
-                type: "get_cell_output_result",
+                type: "get_cell_text_output_result",
                 request_id: request_id,
                 status: "error",
                 message: error.toString()
@@ -315,33 +324,80 @@
         }
     }
 
-    // Utility function to extract text output from a cell
-    function extractCellOutput(cell, maxLength) {
-        var output_text = "";
-        var is_truncated = false;
+    function handleGetCellImageOutput(data) {
+        var request_id = data.request_id;
+        var index = data.index || 0;
         
-        // Get outputs if it's a code cell
+        try {
+            // Obtener la celda en el índice especificado
+            var cells = Jupyter.notebook.get_cells();
+            
+            if (index < 0 || index >= cells.length) {
+                throw new Error("Cell index out of range");
+            }
+            
+            var cell = cells[index];
+            var outputContent = extractCellOutputContent(cell);
+            
+            var response = {
+                type: "get_cell_image_output_result",
+                request_id: request_id,
+                status: "success",
+                cell_id: cell.cell_id || "cell_" + index,
+                index: index,
+                images: outputContent.images
+            };
+            
+            ws.send(JSON.stringify(response));
+            console.log("Cell image output retrieved for index " + index + " (" + outputContent.images.length + " images)");
+        } catch (error) {
+            var errorResponse = {
+                type: "get_cell_image_output_result",
+                request_id: request_id,
+                status: "error",
+                message: error.toString()
+            };
+            
+            ws.send(JSON.stringify(errorResponse));
+            console.error("Error getting cell image output:", error);
+        }
+    }
+
+    // Utility function to extract text output from a cell
+    function extractCellOutputContent(cell, maxTextLength) {
+        var result = {
+            text: "",
+            is_text_truncated: false,
+            images: []
+        };
+        
         if (cell.cell_type === "code" && cell.output_area && cell.output_area.outputs) {
-            // Concatenate all text outputs
             cell.output_area.outputs.forEach(function(output) {
                 if (output.text) {
-                    output_text += output.text;
+                    result.text += output.text;
                 } else if (output.data && output.data["text/plain"]) {
-                    output_text += output.data["text/plain"];
+                    result.text += output.data["text/plain"];
+                }
+                
+                if (output.data) {
+                    for (const format of ["image/png", "image/jpeg", "image/svg+xml"]) {
+                        if (output.data[format]) {
+                            result.images.push({
+                                format: format,
+                                data: output.data[format]
+                            });
+                        }
+                    }
                 }
             });
             
-            // Check if we need to truncate
-            if (maxLength && output_text.length > maxLength) {
-                output_text = output_text.substring(0, maxLength);
-                is_truncated = true;
+            if (maxTextLength && result.text.length > maxTextLength) {
+                result.text = result.text.substring(0, maxTextLength);
+                result.is_text_truncated = true;
             }
         }
         
-        return {
-            text: output_text,
-            is_truncated: is_truncated
-        };
+        return result;
     }
         
     ws.onerror = function(error) {

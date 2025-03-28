@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any, Optional
 import websockets
 from mcp.server.fastmcp import FastMCP, Context
+import mcp.types as types
 
 logging.basicConfig(level=logging.INFO, 
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -66,7 +67,7 @@ class JupyterWebSocketClient:
                     "save_result", "cells_info_result", 
                     "insert_cell_result", "notebook_info_result",
                     "run_cell_result", "run_all_cells_result",
-                    "get_cell_output_result"
+                    "get_cell_text_output_result", "get_cell_image_output_result"
                 ]:
                     request_id = data.get("request_id")
                     if request_id in self.pending_requests:
@@ -145,12 +146,19 @@ class JupyterWebSocketClient:
         """Run all cells in the notebook"""
         return await self.send_request("run_all_cells")
 
-    async def get_cell_output(self, index, max_length=1500):
+    async def get_cell_text_output(self, index, max_length=1500):
         """Get the output content of a specific cell by its index"""
         return await self.send_request(
-            "get_cell_output", 
+            "get_cell_text_output", 
             index=index,
             max_length=max_length
+        )
+    
+    async def get_image_output(self, index):
+        """Get the image outputs of a specific cell by its index"""
+        return await self.send_request(
+            "get_cell_image_output", 
+            index=index
         )
     
 # Singleton client instance
@@ -303,8 +311,8 @@ async def run_all_cells(ctx: Context) -> str:
         }, indent=2)
 
 @mcp.tool()
-async def get_cell_output(ctx: Context, index: int, max_length: int = 1500) -> str:
-    """Get the output content of a specific code cell by its index
+async def get_cell_text_output(ctx: Context, index: int, max_length: int = 1500) -> str:
+    """Get the text output content of a specific code cell by its index
     
     Args:
         index: The index of the cell to get output from
@@ -312,13 +320,47 @@ async def get_cell_output(ctx: Context, index: int, max_length: int = 1500) -> s
     """
     try:
         client = await get_jupyter_client()
-        result = await client.send_request("get_cell_output", index=index, max_length=max_length)
+        result = await client.send_request("get_cell_text_output", index=index, max_length=max_length)
         return json.dumps(result, indent=2)
     except Exception as e:
         return json.dumps({
             "status": "error",
             "message": str(e)
         }, indent=2)
+
+@mcp.tool()
+async def get_image_output(ctx: Context, index: int) -> list[types.ImageContent]:
+    """Get image outputs from a specific cell by its index
+    
+    Args:
+        index: The index of the cell to get images from
+    
+    Returns:
+        A list of images from the cell output
+    """
+    try:
+        client = await get_jupyter_client()
+        result = await client.get_image_output(index)
+        
+        images = []
+        if result.get("status") == "success":
+            for i, img_data in enumerate(result.get("images", [])):
+                try:
+                    format_raw = img_data.get("format", "image/png")
+                    format_name = format_raw.split("/")[1]
+                    mcp_image = types.ImageContent(
+                        type="image",
+                        data=img_data.get("data", ""),
+                        mimeType=f"image/{format_name}",
+                    )
+                    images.append(mcp_image)
+                except Exception as e:
+                    logger.error(f"Error processing image {i}: {str(e)}")
+        
+        return images
+    except Exception as e:
+        logger.error(f"Error in get_image_output: {e}")
+        return []
 
 def main():
     """Run the MCP server"""

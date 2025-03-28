@@ -125,7 +125,8 @@ Once connected, Claude will have access to the following tools:
 - `get_notebook_info` - Get information about the current notebook
 - `run_cell` - Run a specific cell by its index
 - `run_all_cells` - Run all cells in the notebook
-- `get_cell_output` - Get the output content of a specific cell
+- `get_cell_text_output` - Get the output content of a specific cell
+- `get_image_output` - Get the images output of a specific cell
 
 ### Example Prompts
 

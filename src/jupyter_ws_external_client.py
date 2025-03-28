@@ -89,9 +89,13 @@ async def run_all_cells():
     """Run all cells in the notebook"""
     return await send_command("run_all_cells")
 
-async def get_cell_output(index, max_length=1500):
+async def get_cell_text_output(index, max_length=1500):
     """Get the output content of a specific cell by its index"""
-    return await send_command("get_cell_output", index=index, max_length=max_length)
+    return await send_command("get_cell_text_output", index=index, max_length=max_length)
+
+async def get_image_output(index: int):
+    """Get the image output of a specific cell by its index"""
+    return await send_command("get_cell_image_output", index=index)
 
 async def wait_for_response(websocket, request_id: str, timeout: int = 60) -> Dict[str, Any]:
     """Wait for a response with the given request_id or an error"""
@@ -136,6 +140,7 @@ async def external_client(port=8765):
             print("5. Ejecutar celda específica")
             print("6. Ejecutar todas las celdas")
             print("7. Obtener salida de celda específica")
+            print("8. Obtener Imagen de celda específica")
             print("0. Salir")
             
             choice = input("Selecciona una opción: ")
@@ -170,7 +175,11 @@ async def external_client(port=8765):
                     index = int(input("Índice de la celda para obtener salida: "))
                     max_len_input = input("Longitud máxima (opcional, presiona Enter para 1500): ")
                     max_length = int(max_len_input) if max_len_input.strip() else 1500
-                    result = await get_cell_output(index, max_length)
+                    result = await get_cell_text_output(index, max_length)
+                    print("Resultado:", json.dumps(result, indent=2))
+                elif choice == "8":
+                    index = int(input("Índice de la celda para obtener imágenes: "))
+                    result = await get_image_output(index)
                     print("Resultado:", json.dumps(result, indent=2))
                 else:
                     print("Opción no válida")
@@ -217,7 +226,7 @@ async def execute_batch_tests(port=8765):
                 print("Resultado:", json.dumps(run_cell_result, indent=2))
 
                 print("\n=== TEST: Obtener salida de celda ===")
-                output_result = await get_cell_output(0)  # Obtiene salida de la primera celda
+                output_result = await get_cell_text_output(0)  # Obtiene salida de la primera celda
                 print("Resultado:", json.dumps(output_result, indent=2))
             
             # 5. Probar guardar notebook
@@ -229,7 +238,19 @@ async def execute_batch_tests(port=8765):
             print("\n=== TEST: Ejecutar todas las celdas ===")
             run_all_result = await run_all_cells()
             print("Resultado:", json.dumps(run_all_result, indent=2))
+
+            # 7. Obtener imágenes de una celda
+            print("\n=== TEST: Obtener imagen de una celda ===")
+            code_result = await execute_code(
+                """
+from IPython.display import Image
+Image("../assets/img/notebook-setup.png")
+                """
+            )
+            get_image_output_result = await get_image_output(0)
+            print("Resultado:", json.dumps(get_image_output_result, indent=2))
             
+
             print("\n=== TODOS LOS TESTS COMPLETADOS ===")
     except Exception as e:
         print(f"Error durante las pruebas: {str(e)}")
