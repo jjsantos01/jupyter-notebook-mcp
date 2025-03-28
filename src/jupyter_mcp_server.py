@@ -66,6 +66,7 @@ class JupyterWebSocketClient:
                     "save_result", "cells_info_result", 
                     "insert_cell_result", "notebook_info_result",
                     "run_cell_result", "run_all_cells_result",
+                    "get_cell_output_result"
                 ]:
                     request_id = data.get("request_id")
                     if request_id in self.pending_requests:
@@ -143,6 +144,14 @@ class JupyterWebSocketClient:
     async def run_all_cells(self):
         """Run all cells in the notebook"""
         return await self.send_request("run_all_cells")
+
+    async def get_cell_output(self, index, max_length=1500):
+        """Get the output content of a specific cell by its index"""
+        return await self.send_request(
+            "get_cell_output", 
+            index=index,
+            max_length=max_length
+        )
     
 # Singleton client instance
 _jupyter_client: Optional[JupyterWebSocketClient] = None
@@ -285,6 +294,24 @@ async def run_all_cells(ctx: Context) -> str:
     try:
         client = await get_jupyter_client()
         result = await client.run_all_cells()
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "status": "error",
+            "message": str(e)
+        }, indent=2)
+
+@mcp.tool()
+async def get_cell_output(ctx: Context, index: int, max_length: int = 1500) -> str:
+    """Get the output content of a specific code cell by its index
+    
+    Args:
+        index: The index of the cell to get output from
+        max_length: Maximum length of text output to return (default: 1500 characters)
+    """
+    try:
+        client = await get_jupyter_client()
+        result = await client.send_request("get_cell_output", index=index, max_length=max_length)
         return json.dumps(result, indent=2)
     except Exception as e:
         return json.dumps({

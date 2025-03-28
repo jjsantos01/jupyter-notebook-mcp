@@ -87,6 +87,21 @@ async def run_all_cells(websocket) -> Dict[str, Any]:
     
     return await wait_for_response(websocket, request_id)
 
+async def get_cell_output(websocket, index: int, max_length: int = 1500) -> Dict[str, Any]:
+    """Get the output content of a specific cell by its index"""
+    request_id = str(uuid.uuid4())
+    request_msg = {
+        "type": "get_cell_output",
+        "request_id": request_id,
+        "index": index,
+        "max_length": max_length
+    }
+    
+    await websocket.send(json.dumps(request_msg))
+    print(f"Petición para obtener salida de celda en índice {index} enviada con request_id: {request_id}")
+    
+    return await wait_for_response(websocket, request_id)
+
 async def wait_for_response(websocket, request_id: str, timeout: int = 60) -> Dict[str, Any]:
     """Wait for a response with the given request_id or an error"""
     try:
@@ -128,6 +143,7 @@ async def external_client(port=8765):
             print("4. Obtener información del notebook")
             print("5. Ejecutar celda específica")
             print("6. Ejecutar todas las celdas")
+            print("7. Obtener salida de celda específica")
             print("0. Salir")
             
             choice = input("Selecciona una opción: ")
@@ -155,6 +171,12 @@ async def external_client(port=8765):
                 print("Resultado:", json.dumps(result, indent=2))
             elif choice == "6":
                 result = await run_all_cells(websocket)
+                print("Resultado:", json.dumps(result, indent=2))
+            elif choice == "7":
+                index = int(input("Índice de la celda para obtener salida: "))
+                max_len_input = input("Longitud máxima (opcional, presiona Enter para 1500): ")
+                max_length = int(max_len_input) if max_len_input.strip() else 1500
+                result = await get_cell_output(websocket, index, max_length)
                 print("Resultado:", json.dumps(result, indent=2))
             else:
                 print("Opción no válida")
@@ -191,6 +213,10 @@ async def execute_batch_tests(port=8765):
                 print("\n=== TEST: Ejecutar celda específica ===")
                 run_cell_result = await run_cell(websocket, 0)  # Ejecuta la primera celda
                 print("Resultado:", json.dumps(run_cell_result, indent=2))
+
+                print("\n=== TEST: Obtener salida de celda ===")
+                output_result = await get_cell_output(websocket, 0)  # Obtiene salida de la primera celda
+                print("Resultado:", json.dumps(output_result, indent=2))
             
             # 5. Probar guardar notebook
             print("\n=== TEST: Guardar notebook ===")

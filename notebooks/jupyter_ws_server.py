@@ -47,7 +47,7 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
                 # Handle different message types
                 if data.get("type") in [
                     "insert_and_execute_cell", "save_notebook", "get_cells_info", 
-                    "get_notebook_info", "run_cell", "run_all_cells"
+                    "get_notebook_info", "run_cell", "run_all_cells", "get_cell_output"
                 ]:
                     # Forward notebook management requests to notebook client
                     if notebook_client:
@@ -59,7 +59,8 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
                 
                 elif data.get("type") in [
                     "insert_cell_result", "save_result", "cells_info_result", 
-                    "notebook_info_result", "run_cell_result", "run_all_cells_result"
+                    "notebook_info_result", "run_cell_result", "run_all_cells_result",
+                    "get_cell_output_result"
                 ]:
                     # Forward results to external clients
                     for client in external_clients:
@@ -67,7 +68,7 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
                             await client.send(json.dumps(data))
                 
                 else:
-                    print(f"Tipo de mensaje desconocido: {data.get('type')}")
+                    print(f"Unknow message type: {data.get('type')}")
         
         except Exception as e:
             print(f"WebSocket error: {str(e)}")
