@@ -77,10 +77,10 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
             # Clean up when connection is closed
             if websocket == notebook_client:
                 notebook_client = None
-                print("Cliente notebook desconectado")
+                print("Notebook Client disconnected")
             elif websocket in external_clients:
                 external_clients.remove(websocket)
-                print("Cliente externo desconectado")
+                print("External Client disconnected")
     
     # Start WebSocket server
     async def start_server(port, max_attempts=max_port_attempts):
