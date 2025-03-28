@@ -197,37 +197,37 @@ async def execute_batch_tests(port=8765):
             
             # 1. Probar ejecución de código
             print("\n=== TEST: Ejecutar código ===")
-            code_result = await execute_code(websocket, "print('Prueba de MCP Jupyter')")
+            code_result = await execute_code("print('Prueba de MCP Jupyter')")
             print("Resultado:", json.dumps(code_result, indent=2))
             
             # 2. Probar obtener info del notebook
             print("\n=== TEST: Obtener información del notebook ===")
-            notebook_info = await get_notebook_info(websocket)
+            notebook_info = await get_notebook_info()
             print("Resultado:", json.dumps(notebook_info, indent=2))
             
             # 3. Probar obtener info de celdas
             print("\n=== TEST: Obtener información de celdas ===")
-            cells_info = await get_cells_info(websocket)
+            cells_info = await get_cells_info()
             print("Resultado:", json.dumps(cells_info, indent=2))
             
             # 4. Probar ejecutar celda específica
             if cells_info.get("status") == "success" and len(cells_info.get("cells", [])) > 0:
                 print("\n=== TEST: Ejecutar celda específica ===")
-                run_cell_result = await run_cell(websocket, 0)  # Ejecuta la primera celda
+                run_cell_result = await run_cell(0)  # Ejecuta la primera celda
                 print("Resultado:", json.dumps(run_cell_result, indent=2))
 
                 print("\n=== TEST: Obtener salida de celda ===")
-                output_result = await get_cell_output(websocket, 0)  # Obtiene salida de la primera celda
+                output_result = await get_cell_output(0)  # Obtiene salida de la primera celda
                 print("Resultado:", json.dumps(output_result, indent=2))
             
             # 5. Probar guardar notebook
             print("\n=== TEST: Guardar notebook ===")
-            save_result = await save_notebook(websocket)
+            save_result = await save_notebook()
             print("Resultado:", json.dumps(save_result, indent=2))
             
             # 6. Probar ejecutar todas las celdas
             print("\n=== TEST: Ejecutar todas las celdas ===")
-            run_all_result = await run_all_cells(websocket)
+            run_all_result = await run_all_cells()
             print("Resultado:", json.dumps(run_all_result, indent=2))
             
             print("\n=== TODOS LOS TESTS COMPLETADOS ===")
