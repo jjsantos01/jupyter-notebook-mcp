@@ -60,14 +60,10 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
 1. Clone or download this repository to your computer:
    ```bash
    git clone https://github.com/jjsantos01/jupyter-notebook-mcp.git
+   cd jupyter-notebook-mcp
    ```
 
-2. Install required Python packages:
-   ```bash
-   uv pip install websockets nest-asyncio
-   ```
-
-3. Configure Claude desktop integration:
+2. Configure Claude desktop integration:
    Go to `Claude` > `Settings` > `Developer` > `Edit Config` > `claude_desktop_config.json` to include the following:
 
    ```json
@@ -109,10 +105,26 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
    # Start the WebSocket server inside Jupyter
    server, port = setup_jupyter_mcp_integration()
    ```
-   
+
    ![Notebook setup](/assets/img/notebook-setup.png)
 
 3. Launch Claude desktop with MCP enabled.
+
+4. (optional) You can install additional Python packages that you need for your analysis.
+   1. Activate your virtual env
+
+      ```bash
+      # Windows
+      .\.venv\Scripts\activate
+      # Mac
+      source ./venv/bin/activate
+      ```
+
+   2. Install packages with `uv pip install package_name_1 package_name_2 package_name_n`, for example:
+
+      ```bash
+      uv pip install seaborn
+      ```
 
 ### Using with Claude
 
