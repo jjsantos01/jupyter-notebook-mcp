@@ -220,7 +220,7 @@ async def ping(ctx: Context) -> str:
         return json.dumps({"status": "error", "message": str(e)})
 
 @mcp.tool()
-async def insert_and_execute_cell(ctx: Context, cell_type: str = "code", position: int = 0, content: str = "") -> str:
+async def insert_and_execute_cell(ctx: Context, cell_type: str = "code", position: int = 1, content: str = "") -> str:
     """Insert a cell at the specified position and execute it. 
     If code cell, it will be executed.
     If markdown cell, it will be rendered.

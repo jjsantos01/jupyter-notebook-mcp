@@ -34,10 +34,9 @@ The system consists of three main components:
 
 ### Prerequisites
 
-- Jupyter Notebook 6.x
-- Python 3.10 or newer
-- Claude AI desktop application
-- `uv` package manager
+- [Python 3.12 or newer](https://www.python.org/downloads/) (probably also work with older versions, but not tested)
+- [`uv` package manager](/README.md#installing-uv)
+- [Claude AI desktop application](https://claude.ai/download)
 
 #### Installing uv
 
@@ -60,10 +59,20 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
 1. Clone or download this repository to your computer:
    ```bash
    git clone https://github.com/jjsantos01/jupyter-notebook-mcp.git
-   cd jupyter-notebook-mcp
    ```
 
-2. Configure Claude desktop integration:
+2. Create virtual environment with required packages an install `jupyter-mcp` kernel, so it can be recognized by your jupyter installation, if you had one before.
+
+   ```bash
+   uv run python -m ipykernel install --name jupyter-mcp
+   ```
+
+3. (optional) Install additional Python packages for your analysis:
+   ```bash
+   uv pip install seaborn
+   ```
+
+4. Configure Claude desktop integration:
    Go to `Claude` > `Settings` > `Developer` > `Edit Config` > `claude_desktop_config.json` to include the following:
 
    ```json
@@ -84,6 +93,8 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
 
    Replace `/ABSOLUTE/PATH/TO/` with the actual path to the `src` folder on your system.
 
+   If you had previously opened Claude, then `File` > `Exit` and open it again.
+
 ## Usage
 
 ### Starting the Connection
@@ -91,10 +102,12 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
 1. Start your Jupyter Notebook (version 6.x) server:
 
    ```bash
-   jupyter nbclassic
+   uv run jupyter nbclassic
    ```
 
-2. In a notebook cell, run the following code to initialize the WebSocket server:
+2. Create a new Jupyter Notebook and make sure that you choose the `jupyter-mcp` kernel: `kernel` -> `change kernel` -> `jupyter-mcp`
+
+3. In a notebook cell, run the following code to initialize the WebSocket server:
 
    ```python
    import sys
@@ -108,23 +121,7 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
 
    ![Notebook setup](/assets/img/notebook-setup.png)
 
-3. Launch Claude desktop with MCP enabled.
-
-4. (optional) You can install additional Python packages that you need for your analysis.
-   1. Activate your virtual env
-
-      ```bash
-      # Windows
-      .\.venv\Scripts\activate
-      # Mac
-      source ./venv/bin/activate
-      ```
-
-   2. Install packages with `uv pip install package_name_1 package_name_2 package_name_n`, for example:
-
-      ```bash
-      uv pip install seaborn
-      ```
+4. Launch Claude desktop with MCP enabled.
 
 ### Using with Claude
 
@@ -150,12 +147,12 @@ You have access to my Jupyter Notebook through MCP tools. Can you:
    2. 
 ```
 
-## Testing with External Client
+<!-- ## Testing with External Client
 
 You can test the functionality with the included external client:
 
 ```bash
-python jupyter_ws_external_client.py
+uv run python jupyter_ws_external_client.py
 ```
 
 This will provide an interactive menu to test some available functions.
@@ -163,8 +160,8 @@ This will provide an interactive menu to test some available functions.
 For automated testing of all commands:
 
 ```bash
-python jupyter_ws_external_client.py --batch
-```
+uv run python jupyter_ws_external_client.py --batch
+``` -->
 
 ## Troubleshooting
 

@@ -45,7 +45,7 @@
     // Handle inserting and executing a cell
     function handleInsertCell(data) {
         var request_id = data.request_id;
-        var position = data.position || 0;
+        var position = data.position || 1;
         var cell_type = data.cell_type || "code";
         var content = data.content || "";
         
