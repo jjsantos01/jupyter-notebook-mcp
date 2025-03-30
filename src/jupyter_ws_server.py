@@ -34,8 +34,9 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
             # Initial message to identify client type
             init_msg = await websocket.recv()
             init_data = json.loads(init_msg)
+            client_role = init_data.get("role")
             
-            if init_data.get("role") == "notebook":
+            if client_role == "notebook":
                 notebook_client = websocket
                 print("Jupyter client connected")
             else:
@@ -43,33 +44,31 @@ def setup_jupyter_mcp_integration(ws_port=8765, max_port_attempts=10):
                 print("External client connected (likely MCP server)")
             
             async for message in websocket:
-                data = json.loads(message)                
-                # Handle different message types
-                if data.get("type") in [
-                    "insert_and_execute_cell", "save_notebook", "get_cells_info", 
-                    "get_notebook_info", "run_cell", "run_all_cells",
-                    "get_cell_text_output", "get_cell_image_output"
-                ]:
-                    # Forward notebook management requests to notebook client
-                    if notebook_client:
-                        await notebook_client.send(json.dumps(data))
-                    else:
-                        # No notebook client connected
-                        error_msg = {"type": "error", "message": "No notebook client connected", "request_id": data.get("request_id")}
-                        await websocket.send(json.dumps(error_msg))
+                data = json.loads(message)
                 
-                elif data.get("type") in [
-                    "insert_cell_result", "save_result", "cells_info_result", 
-                    "notebook_info_result", "run_cell_result", "run_all_cells_result",
-                    "get_cell_text_output_result", "get_cell_image_output_result"
-                ]:
-                    # Forward results to external clients
+                # Route message based on explicit target field
+                target = data.get("target", "all")
+                
+                # Add source information to outgoing messages if not already present
+                if "source" not in data:
+                    data["source"] = client_role
+                
+                if target == "notebook" and notebook_client:
+                    await notebook_client.send(json.dumps(data))
+                elif target == "external":
                     for client in external_clients:
-                        if client != websocket:  # Don't send back to originator
+                        if client != websocket:
                             await client.send(json.dumps(data))
-                
+                elif target == "all":
+                    # Broadcast to all connected clients
+                    for client in list(external_clients) + ([notebook_client] if notebook_client else []):
+                        if client != websocket:
+                            await client.send(json.dumps(data))
+                elif target == "server":
+                    # Message meant for the server itself, handle internally
+                    pass
                 else:
-                    print(f"Unknow message type: {data.get('type')}")
+                    print(f"Unknown target: {target}")
         
         except Exception as e:
             print(f"WebSocket error: {str(e)}")

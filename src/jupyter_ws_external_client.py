@@ -31,26 +31,22 @@ async def ensure_connected(port=8765):
     return current_websocket
 
 async def send_command(command_type, **kwargs):
-    """Envía un comando al servidor, asegurando la conexión primero"""
+    """send a command to server"""
     try:
-        # Asegurar que estamos conectados
         websocket = await ensure_connected()
-        
-        # Crear ID de solicitud único
         request_id = str(uuid.uuid4())
         
-        # Preparar mensaje
         request_msg = {
             "type": command_type,
+            "source": "external",
+            "target": "notebook",
             "request_id": request_id,
             **kwargs
         }
         
-        # Enviar mensaje
         await websocket.send(json.dumps(request_msg))
         print(f"Petición {command_type} enviada con request_id: {request_id}")
         
-        # Esperar respuesta
         return await wait_for_response(websocket, request_id)
     except websockets.exceptions.ConnectionClosed:
         print("Conexión cerrada. Intentaremos reconectar en el próximo comando.")
@@ -61,7 +57,6 @@ async def send_command(command_type, **kwargs):
         print(f"Error al enviar comando: {e}")
         raise
 
-# Reemplazar todas las funciones de comando por versiones que usan send_command
 async def execute_code(code, position=None):
     """Execute code in the Jupyter notebook"""
     return await send_command("insert_and_execute_cell",
@@ -222,7 +217,7 @@ async def execute_batch_tests(port=8765):
             # 4. Probar ejecutar celda específica
             if cells_info.get("status") == "success" and len(cells_info.get("cells", [])) > 0:
                 print("\n=== TEST: Ejecutar celda específica ===")
-                run_cell_result = await run_cell(0)  # Ejecuta la primera celda
+                run_cell_result = await run_cell(1)  # Ejecuta la primera celda
                 print("Resultado:", json.dumps(run_cell_result, indent=2))
 
                 print("\n=== TEST: Obtener salida de celda ===")

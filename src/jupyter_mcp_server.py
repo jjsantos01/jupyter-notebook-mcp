@@ -62,33 +62,23 @@ class JupyterWebSocketClient:
             async for message in self.websocket:
                 data = json.loads(message)
                 
-                # Handle different message types
-                if data.get("type") in [
-                    "save_result", "cells_info_result", 
-                    "insert_cell_result", "notebook_info_result",
-                    "run_cell_result", "run_all_cells_result",
-                    "get_cell_text_output_result", "get_cell_image_output_result"
-                ]:
-                    request_id = data.get("request_id")
-                    if request_id in self.pending_requests:
-                        # Resolve the future with the result
-                        future = self.pending_requests.pop(request_id)
-                        future.set_result(data)
-                elif data.get("type") == "error":
+                request_id = data.get("request_id")
+                if request_id in self.pending_requests:
+                    future = self.pending_requests.pop(request_id)
+                    future.set_result(data)
+                elif data.get("type") == "error" and request_id in self.pending_requests:
                     # Handle error messages
-                    request_id = data.get("request_id")
-                    if request_id in self.pending_requests:
-                        future = self.pending_requests.pop(request_id)
-                        future.set_exception(Exception(data.get("message", "Unknown error")))
+                    future = self.pending_requests.pop(request_id)
+                    future.set_exception(Exception(data.get("message", "Unknown error")))
                 else:
-                    logger.warning(f"Received unknown message type: {data.get('type')}")
+                    logger.warning(f"Received message with unknown request_id: {request_id}")
         except websockets.exceptions.ConnectionClosed:
             logger.warning("WebSocket connection closed")
             self.connected = False
         except Exception as e:
             logger.error(f"Error in WebSocket listener: {str(e)}")
             self.connected = False
-    
+
     async def send_request(self, request_type, **kwargs):
         """Send a request to the Jupyter notebook and get the result"""
         if not self.connected:
@@ -103,9 +93,11 @@ class JupyterWebSocketClient:
         future = asyncio.get_event_loop().create_future()
         self.pending_requests[request_id] = future
         
-        # Prepare the request
+        # Prepare the request with explicit direction
         request = {
             "type": request_type,
+            "source": "external",
+            "target": "notebook",
             "request_id": request_id,
             **kwargs
         }

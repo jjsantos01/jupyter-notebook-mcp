@@ -61,6 +61,8 @@
                 var response = {
                     type: "insert_cell_result",
                     request_id: request_id,
+                    source: "notebook",
+                    target: "external",
                     status: "success",
                     cell_id: cell.cell_id || "cell_" + position,
                     position: position,
@@ -108,6 +110,8 @@
             var response = {
                 type: "save_result",
                 request_id: request_id,
+                source: "notebook",
+                target: "external",
                 status: "success",
                 notebook_path: Jupyter.notebook.notebook_path
             };
@@ -146,6 +150,8 @@
             var response = {
                 type: "cells_info_result",
                 request_id: request_id,
+                source: "notebook",
+                target: "external",
                 status: "success",
                 cells: cellsInfo
             };
@@ -182,6 +188,8 @@
             var response = {
                 type: "notebook_info_result",
                 request_id: request_id,
+                source: "notebook",
+                target: "external",
                 status: "success",
                 notebook_info: nbInfo
             };
@@ -221,6 +229,8 @@
                     type: "run_cell_result",
                     request_id: request_id,
                     status: "success",
+                    source: "notebook",
+                    target: "external",
                     cell_id: cell_id,
                     index: index,
                     output_text: outputs.text,
@@ -262,7 +272,9 @@
             var response = {
                 type: "run_all_cells_result",
                 request_id: request_id,
-                status: "success"
+                status: "success",
+                source: "notebook",
+                target: "external",
             };
             
             ws.send(JSON.stringify(response));
@@ -300,6 +312,8 @@
                 type: "get_cell_text_output_result",
                 request_id: request_id,
                 status: "success",
+                source: "notebook",
+                target: "external",
                 cell_id: cell.cell_id || "cell_" + index,
                 index: index,
                 output_text: outputContent.text,
@@ -343,6 +357,8 @@
                 type: "get_cell_image_output_result",
                 request_id: request_id,
                 status: "success",
+                source: "notebook",
+                target: "external",
                 cell_id: cell.cell_id || "cell_" + index,
                 index: index,
                 images: outputContent.images
