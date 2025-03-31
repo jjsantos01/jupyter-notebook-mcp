@@ -92,6 +92,10 @@ async def get_image_output(index: int):
     """Get the image output of a specific cell by its index"""
     return await send_command("get_cell_image_output", index=index)
 
+async def edit_cell_content(index, content, execute=True):
+    """Edit the content of a specific cell by its index"""
+    return await send_command("edit_cell_content", index=index, content=content, execute=execute)
+
 async def wait_for_response(websocket, request_id: str, timeout: int = 60) -> Dict[str, Any]:
     """Wait for a response with the given request_id or an error"""
     try:
@@ -136,6 +140,7 @@ async def external_client(port=8765):
             print("6. Ejecutar todas las celdas")
             print("7. Obtener salida de celda específica")
             print("8. Obtener Imagen de celda específica")
+            print("9. Editar contenido de celda específica")
             print("0. Salir")
             
             choice = input("Selecciona una opción: ")
@@ -175,6 +180,13 @@ async def external_client(port=8765):
                 elif choice == "8":
                     index = int(input("Índice de la celda para obtener imágenes: "))
                     result = await get_image_output(index)
+                    print("Resultado:", json.dumps(result, indent=2))
+                elif choice == "9":
+                    index = int(input("Índice de la celda a editar: "))
+                    content = input("Nuevo contenido: ")
+                    execute_input = input("¿Ejecutar después de editar? (s/n): ").lower()
+                    execute = execute_input.startswith('s')
+                    result = await edit_cell_content(index, content, execute)
                     print("Resultado:", json.dumps(result, indent=2))
                 else:
                     print("Opción no válida")
@@ -245,6 +257,10 @@ Image("../assets/img/notebook-setup.png")
             get_image_output_result = await get_image_output(0)
             print("Resultado:", json.dumps(get_image_output_result, indent=2))
             
+            if cells_info.get("status") == "success" and len(cells_info.get("cells", [])) > 0:
+                print("\n=== TEST: Editar contenido de celda ===")
+                edit_result = await edit_cell_content(1, "# Celda modificada por MCP\nprint('MCP was here :)')")
+                print("Resultado:", json.dumps(edit_result, indent=2))
 
             print("\n=== TODOS LOS TESTS COMPLETADOS ===")
     except Exception as e:

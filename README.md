@@ -136,6 +136,7 @@ Once connected, Claude will have access to the following tools:
 - `run_all_cells` - Run all cells in the notebook
 - `get_cell_text_output` - Get the output content of a specific cell
 - `get_image_output` - Get the images output of a specific cell
+- `edit_cell_content` - Edit the content of an existing cell
 
 ### Example Prompts
 

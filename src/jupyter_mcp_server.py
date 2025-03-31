@@ -152,7 +152,18 @@ class JupyterWebSocketClient:
             "get_cell_image_output", 
             index=index
         )
-    
+
+    async def edit_cell_content(self, index, content, execute=True):
+        """Edit the content of a specific cell by its index"""
+        return await self.send_request(
+            "edit_cell_content", 
+            source="external",
+            target="notebook",
+            index=index,
+            content=content,
+            execute=execute,
+        )
+
 # Singleton client instance
 _jupyter_client: Optional[JupyterWebSocketClient] = None
 
@@ -353,6 +364,29 @@ async def get_image_output(ctx: Context, index: int) -> list[types.ImageContent]
     except Exception as e:
         logger.error(f"Error in get_image_output: {e}")
         return []
+
+@mcp.tool()
+async def edit_cell_content(ctx: Context, index: int, content: str, execute: bool = True) -> str:
+    """Edit the content of a specific cell by its index and optionally execute it
+    
+    Args:
+        index: The index of the cell to edit
+        content: The new content for the cell
+        execute: If True and the cell is code, execute after editing and return output
+    """
+    try:
+        client = await get_jupyter_client()
+        result = await client.edit_cell_content(
+            index=index,
+            content=content,
+            execute=execute
+        )
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "status": "error",
+            "message": str(e)
+        }, indent=2)
 
 def main():
     """Run the MCP server"""

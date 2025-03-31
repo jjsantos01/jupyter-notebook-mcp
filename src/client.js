@@ -37,6 +37,9 @@
             case "get_cell_image_output":
                 handleGetCellImageOutput(data);
                 break;
+            case "edit_cell_content":
+                handleEditCellContent(data);
+                break;
             default:
                 console.warn("Unknown message type:", data.type);
         }
@@ -378,6 +381,69 @@
             console.error("Error getting cell image output:", error);
         }
     }
+
+    function handleEditCellContent(data) {
+        var request_id = data.request_id;
+        var index = data.index || 0;
+        var content = data.content || "";
+        var execute = data.execute || false;
+        
+        try {
+            var cells = Jupyter.notebook.get_cells();
+            if (index < 0 || index >= cells.length) {
+                throw new Error("Cell index out of range");
+            }
+            
+            var cell = cells[index];
+            cell.set_text(content);
+            
+            var sendResult = function() {
+                var outputResult = extractCellOutputContent(cell, 1500);
+                
+                var response = {
+                    type: "edit_cell_content_result",
+                    source: "notebook",
+                    target: "external",
+                    request_id: request_id,
+                    status: "success",
+                    cell_id: cell.cell_id || "cell_" + index,
+                    index: index,
+                    output_text: execute ? outputResult.text : "",
+                    is_truncated: execute ? outputResult.is_text_truncated : false,
+                    has_images: execute ? outputResult.images.length > 0 : false
+                };
+                
+                ws.send(JSON.stringify(response));
+                console.log("Cell content updated at index " + index + 
+                    (execute ? " and executed" : "") +
+                    (outputResult.is_text_truncated ? " (output truncated)" : ""));
+            };
+            
+            if (cell.cell_type === "code" && execute) {
+                cell.events.one('finished_execute.CodeCell', function() {
+                    sendResult();
+                });
+                cell.execute();
+            } else if (cell.cell_type === "markdown") {
+                cell.render();
+                sendResult();
+            } else {
+                sendResult();
+            }
+        } catch (error) {
+            var errorResponse = {
+                type: "edit_cell_content_result",
+                source: "notebook",
+                target: "external",
+                request_id: request_id,
+                status: "error",
+                message: error.toString()
+            };
+            
+            ws.send(JSON.stringify(errorResponse));
+            console.error("Error updating cell content:", error);
+        }
+    }    
 
     // Utility function to extract text output from a cell
     function extractCellOutputContent(cell, maxTextLength) {
