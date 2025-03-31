@@ -96,6 +96,10 @@ async def edit_cell_content(index, content, execute=True):
     """Edit the content of a specific cell by its index"""
     return await send_command("edit_cell_content", index=index, content=content, execute=execute)
 
+async def set_slideshow_type(index, slideshow_type="-"):
+    """Set the slideshow type for a specific cell by its index"""
+    return await send_command("set_slideshow_type", index=index, slideshow_type=slideshow_type)
+
 async def wait_for_response(websocket, request_id: str, timeout: int = 60) -> Dict[str, Any]:
     """Wait for a response with the given request_id or an error"""
     try:
@@ -141,6 +145,7 @@ async def external_client(port=8765):
             print("7. Obtener salida de celda específica")
             print("8. Obtener Imagen de celda específica")
             print("9. Editar contenido de celda específica")
+            print("10. Establecer tipo de slideshow para una celda")
             print("0. Salir")
             
             choice = input("Selecciona una opción: ")
@@ -153,8 +158,14 @@ async def external_client(port=8765):
                     code = input("Ingresa el código a ejecutar: ")
                     pos_input = input("Posición (opcional, presiona Enter para final): ")
                     position = int(pos_input) if pos_input.strip() else None
+                    print("Tipos válidos: slide, subslide, fragment, skip, notes, - (ninguno)")
+                    slideshow_type = input("Tipo de slideshow: ")
                     result = await execute_code(code, position)
                     print("Resultado:", json.dumps(result, indent=2))
+                    
+                    if slideshow_type.strip() != "":
+                        result_slide = await set_slideshow_type(position, slideshow_type)
+                        print("Resultado:", json.dumps(result_slide, indent=2))
                 elif choice == "2":
                     result = await save_notebook()
                     print("Resultado:", json.dumps(result, indent=2))
@@ -187,6 +198,14 @@ async def external_client(port=8765):
                     execute_input = input("¿Ejecutar después de editar? (s/n): ").lower()
                     execute = execute_input.startswith('s')
                     result = await edit_cell_content(index, content, execute)
+                    print("Resultado:", json.dumps(result, indent=2))
+                elif choice == "10":
+                    index = int(input("Índice de la celda: "))
+                    print("Tipos válidos: slide, subslide, fragment, skip, notes, - (ninguno)")
+                    slideshow_type = input("Tipo de slideshow: ")
+                    if slideshow_type.strip() == "":
+                        slideshow_type = "-"
+                    result = await set_slideshow_type(index, slideshow_type)
                     print("Resultado:", json.dumps(result, indent=2))
                 else:
                     print("Opción no válida")
@@ -257,10 +276,17 @@ Image("../assets/img/notebook-setup.png")
             get_image_output_result = await get_image_output(0)
             print("Resultado:", json.dumps(get_image_output_result, indent=2))
             
+            # Edit cell content
             if cells_info.get("status") == "success" and len(cells_info.get("cells", [])) > 0:
                 print("\n=== TEST: Editar contenido de celda ===")
                 edit_result = await edit_cell_content(1, "# Celda modificada por MCP\nprint('MCP was here :)')")
                 print("Resultado:", json.dumps(edit_result, indent=2))
+            
+            # set slideshow type
+            if cells_info.get("status") == "success" and len(cells_info.get("cells", [])) > 0:
+                print("\n=== TEST: Establecer tipo de slideshow ===")
+                slideshow_result = await set_slideshow_type(1, "slide")
+                print("Resultado:", json.dumps(slideshow_result, indent=2))
 
             print("\n=== TODOS LOS TESTS COMPLETADOS ===")
     except Exception as e:

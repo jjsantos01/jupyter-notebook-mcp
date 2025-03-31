@@ -40,6 +40,9 @@
             case "edit_cell_content":
                 handleEditCellContent(data);
                 break;
+            case "set_slideshow_type":
+                handleSetSlideshowType(data);
+                break;
             default:
                 console.warn("Unknown message type:", data.type);
         }
@@ -443,7 +446,68 @@
             ws.send(JSON.stringify(errorResponse));
             console.error("Error updating cell content:", error);
         }
-    }    
+    }
+
+    function handleSetSlideshowType(data) {
+        var request_id = data.request_id;
+        var index = data.index || 0;
+        var slideshow_type = data.slideshow_type || "-";
+        
+        try {
+            var cells = Jupyter.notebook.get_cells();
+            if (index < 0 || index >= cells.length) {
+                throw new Error("Cell index out of range");
+            }
+            
+            var cell = cells[index];
+            
+            var valid_types = ["slide", "subslide", "fragment", "skip", "notes", null, "-"];
+            if (!valid_types.includes(slideshow_type)) {
+                slideshow_type = null;
+            }
+            
+            if (slideshow_type === "-") {
+                slideshow_type = null;
+            }
+            
+            if (!cell.metadata.slideshow) {
+                cell.metadata.slideshow = {};
+            }
+            
+            if (slideshow_type === null) {
+                delete cell.metadata.slideshow.slide_type;
+            } else {
+                cell.metadata.slideshow.slide_type = slideshow_type;
+            }
+            
+            var response = {
+                type: "set_slideshow_type_result",
+                source: "notebook",
+                target: "external",
+                request_id: request_id,
+                status: "success",
+                cell_id: cell.cell_id || "cell_" + index,
+                index: index,
+                slideshow_type: slideshow_type
+            };
+            
+            ws.send(JSON.stringify(response));
+            console.log("Cell slideshow type updated at index " + index + " to " + 
+                        (slideshow_type === null ? "default/none" : slideshow_type));
+        } catch (error) {
+            var errorResponse = {
+                type: "set_slideshow_type_result",
+                source: "notebook",
+                target: "external",
+                request_id: request_id,
+                status: "error",
+                message: error.toString()
+            };
+            
+            ws.send(JSON.stringify(errorResponse));
+            console.error("Error updating cell slideshow type:", error);
+        }
+    }
 
     // Utility function to extract text output from a cell
     function extractCellOutputContent(cell, maxTextLength) {

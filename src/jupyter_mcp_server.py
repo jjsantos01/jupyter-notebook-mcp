@@ -113,14 +113,23 @@ class JupyterWebSocketClient:
             self.pending_requests.pop(request_id, None)
             raise Exception(f"Request {request_type} timed out after 60 seconds")
     
-    async def insert_and_execute_cell(self, cell_type="code", position=0, content=""):
-        """Insert a cell at the specified position"""
-        return await self.send_request(
+    async def insert_and_execute_cell(
+                self,
+                cell_type="code",
+                position=1,
+                content="",
+                slideshow_type=None
+            ):
+        """Insert a cell at the specified position and optionally set slideshow type"""
+        result = await self.send_request(
             "insert_and_execute_cell", 
             cell_type=cell_type, 
             position=position, 
             content=content,
         )
+        if (result.get("type") != "error") and slideshow_type:
+            await self.set_slideshow_type(position, slideshow_type)
+        return result
         
     async def save_notebook(self):
         """Save the current notebook"""
@@ -162,6 +171,16 @@ class JupyterWebSocketClient:
             index=index,
             content=content,
             execute=execute,
+        )
+    
+    async def set_slideshow_type(self, index, slideshow_type="-"):
+        """Set the slideshow type for a specific cell by its index"""
+        return await self.send_request(
+            "set_slideshow_type", 
+            source="external",
+            target="notebook",
+            index=index,
+            slideshow_type=slideshow_type
         )
 
 # Singleton client instance
@@ -223,8 +242,14 @@ async def ping(ctx: Context) -> str:
         return json.dumps({"status": "error", "message": str(e)})
 
 @mcp.tool()
-async def insert_and_execute_cell(ctx: Context, cell_type: str = "code", position: int = 1, content: str = "") -> str:
-    """Insert a cell at the specified position and execute it. 
+async def insert_and_execute_cell(
+        ctx: Context, cell_type:
+        str = "code",
+        position: int = 1,
+        content: str = "",
+        slideshow_type=None,
+    ) -> str:
+    """Insert a cell at the specified position and execute it, and optionally set slideshow type.
     If code cell, it will be executed.
     If markdown cell, it will be rendered.
     
@@ -232,10 +257,11 @@ async def insert_and_execute_cell(ctx: Context, cell_type: str = "code", positio
         cell_type: The type of cell ('code' or 'markdown')
         position: The position to insert the cell at
         content: The content of the cell
+        slideshow_type: Optional slideshow type ('slide', 'subslide', 'fragment', 'skip', 'notes')
     """
     try:
         client = await get_jupyter_client()
-        result = await client.insert_and_execute_cell(cell_type, position, content)
+        result = await client.insert_and_execute_cell(cell_type, position, content, slideshow_type)
         return json.dumps(result, indent=2)
     except Exception as e:
         return json.dumps({
@@ -381,6 +407,30 @@ async def edit_cell_content(ctx: Context, index: int, content: str, execute: boo
             content=content,
             execute=execute
         )
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "status": "error",
+            "message": str(e)
+        }, indent=2)
+
+@mcp.tool()
+async def set_slideshow_type(ctx: Context, index: int, slideshow_type: str = "") -> str:
+    """Set the slideshow type for a specific cell by its index
+    
+    Args:
+        index: The index of the cell to modify
+        slideshow_type: The slideshow type to set. Valid values are:
+                        "slide" - Start a new slide
+                        "subslide" - Start a new subslide
+                        "fragment" - Fragment (appear on click)
+                        "skip" - Skip cell in slideshow
+                        "notes" - Speaker notes
+                        "-" or null - Remove slideshow type
+    """
+    try:
+        client = await get_jupyter_client()
+        result = await client.set_slideshow_type(index=index, slideshow_type=slideshow_type)
         return json.dumps(result, indent=2)
     except Exception as e:
         return json.dumps({
