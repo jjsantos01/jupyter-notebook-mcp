@@ -177,6 +177,69 @@ Use appropriate slideshow types for each cell to make the presentation visually 
 
 [Check Here the full conversation](https://claude.ai/share/420b6aa6-b84b-437f-a6a6-89d310c36d52)
 
+```plain
+You have access to a Jupyter Notebook server. By default it runs Python, but you can run Stata (v18) code in this server using the %%stata magic, for example:
+
+%%stata
+display "hello world"
+
+Run the available tools to solve the exercise, execute the code, and interpret the results.
+
+**EXERCISE:**
+
+In this exercise, you will use data from the American Community Survey (ACS). The ACS is a product of the U.S. Census Bureau and involves interviewing millions of Americans each year. For an introduction to the ACS, visit the ACS website (here).
+
+For this exercise, I have created a data file containing two variables collected from respondents of the 2010 ACS who lived in one of two metropolitan areas: Minneapolis/St Paul and Duluth/Superior. The two variables are: (1) People's poverty status and (2) the time it takes people to commute to work.
+
+Use STATA syntax files you already have (from the first assignment or class examples) and modify them to accomplish the following goals.
+
+1. Read the data file (`"./stata_assignment_2.dat"`) for this assignment into STATA.
+2. Be sure to declare "zero" as a missing value for `TRANTIME`, the commuting time variable.
+3. Create a new dichotomous poverty variable that equals "1" if a person's income-to-poverty-line ratio (`POVRATIO`) is less than 100, and "0" otherwise; see the bottom of the assignment for an example of how to do this in STATA.
+4. Separately for Minneapolis/St Paul and Duluth/Superior, produce:
+   - a histogram of the commuting time (`TRANTIME`) variable.
+   - measures of central tendency and spread for commuting time.
+   - a frequency distribution for the poverty status (0 vs 1) variable.
+5. Separately for Minneapolis/St Paul and Duluth/Superior, use STATA code to produce:
+   - a 95% confidence interval for the mean commuting time.
+   - a 95% confidence interval for the proportion of people who are poor. See below for an example of how to do this in STATA.
+
+Use the results from step #4 above to:
+
+6. Separately for Minneapolis/St Paul and Duluth/Superior, manually calculate:
+   - a 95% confidence interval for the mean commuting time.
+   - a 95% confidence interval for the proportion of people who are poor.
+7. Confirm that your answers from steps #5 and #6 match.
+
+Based on the results above, answer this question:
+
+8. How do you interpret the confidence intervals calculated in steps #5 and #6 above?
+
+9. Finally, create a do file (.do) with the all the Stata code and the answers as comments.
+
+---
+
+**DESCRIPTION OF VARIABLES IN "STATA ASSIGNMENT 2.DAT"**
+
+**METAREAD** (Column 4-7)  
+Metropolitan Area  
+- `2240`: Duluth-Superior, MN/WI  
+- `5120`: Minneapolis-St. Paul, MN  
+
+**POVRATIO** (Column 18-20)  
+Ratio of person's income to the poverty threshold:  
+- `<100`: Below Poverty Line  
+- `100`: At Poverty Line  
+- `>100`: Above Poverty Line  
+
+**TRANTIME** (Column 21-23)  
+Travel time to work  
+- `0`: Zero minutes  
+- `1`: 1 Minute  
+- etc.
+
+```
+
 ## Testing with External Client
 
 You can test the functionality without using Claude Desktop with the included external client:
