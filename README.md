@@ -155,6 +155,10 @@ This is an experimental project and should be used with caution. This tool runs 
 
 Ask Claude to perform notebook operations:
 
+### Python example
+
+You can check the [example notebook](/notebooks/example_notebook.ipynb)
+
 ```plain
 You have access to a Jupyter Notebook server.
 
@@ -176,6 +180,25 @@ Use appropriate slideshow types for each cell to make the presentation visually 
 ```
 
 [Check Here the full conversation](https://claude.ai/share/420b6aa6-b84b-437f-a6a6-89d310c36d52)
+
+### Stata example
+
+For this example, you need the [Stata Software](https://www.stata.com/) (v17 or later), which is not open source. If you already have Stata, you need to install the [`stata-setup`](https://pypi.org/project/stata-setup/) package:
+
+```bash
+uv pip install stata-setup
+```
+
+Then, at the begining of your notebook, you need to additionally include:
+
+```python
+import stata_setup
+stata_setup.config('your_stata_installation_directory', 'your_stata_edition')
+```
+
+You can check the [example notebook](/notebooks/stata_example.ipynb)
+
+This exercise comes from [Professor John Robert Warren webpage](https://www.rob-warren.com/soc3811_stata_exercises.html)
 
 ```plain
 You have access to a Jupyter Notebook server. By default it runs Python, but you can run Stata (v18) code in this server using the %%stata magic, for example:
@@ -239,6 +262,8 @@ Travel time to work
 - etc.
 
 ```
+
+[Check Here the full conversation](https://claude.ai/share/97b5a546-9375-434d-8224-561706782880)
 
 ## Testing with External Client
 
