@@ -57,6 +57,7 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
 ### Setup
 
 1. Clone or download this repository to your computer:
+
    ```bash
    git clone https://github.com/jjsantos01/jupyter-notebook-mcp.git
    ```
@@ -68,6 +69,7 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
    ```
 
 3. (optional) Install additional Python packages for your analysis:
+
    ```bash
    uv pip install seaborn
    ```
@@ -91,7 +93,9 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
    }
    ```
 
-   Replace `/ABSOLUTE/PATH/TO/` with the actual path to the `src` folder on your system.
+   Replace `/ABSOLUTE/PATH/TO/` with the actual path to the `src` folder on your system. For example:
+   - Windows: `"C:\\Users\\MyUser\\GitHub\\jupyter-notebook-mcp\\src\\"`
+   - Mac: `/Users/MyUser/GitHub/jupyter-notebook-mcp/src/`
 
    If you had previously opened Claude, then `File` > `Exit` and open it again.
 
@@ -119,6 +123,10 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
    server, port = setup_jupyter_mcp_integration()
    ```
 
+   Don't forget to replace here `'/path/to/jupyter-notebook-mcp/src'` with `src` folder on your system. For example:
+   - Windows: `"C:\\Users\\MyUser\\GitHub\\jupyter-notebook-mcp\\src\\"`
+   - Mac: `/Users/MyUser/GitHub/jupyter-notebook-mcp/src/`
+
    ![Notebook setup](/assets/img/notebook-setup.png)
 
 4. Launch Claude desktop with MCP enabled.
@@ -137,23 +145,42 @@ Once connected, Claude will have access to the following tools:
 - `get_cell_text_output` - Get the output content of a specific cell
 - `get_image_output` - Get the images output of a specific cell
 - `edit_cell_content` - Edit the content of an existing cell
+- `set_slideshow_type`- Set the slide show type for cell
 
-### Example Prompts
+## ⚠️ DISCLAIMER
+
+This is an experimental project and should be used with caution. This tool runs arbitrary Python code in your computer, which could potentially modify or delete data if not used carefully. Always back up your important projects and data.
+
+## Example Prompts
 
 Ask Claude to perform notebook operations:
 
 ```plain
-You have access to my Jupyter Notebook through MCP tools. Can you:
-   1. First check if the connection is working with a ping
-   2. 
+You have access to a Jupyter Notebook server.
+
+I need to create a presentation about Python's Seaborn library.  
+The content is as follows:
+
+- What is Seaborn?
+- Long vs. Wide data format
+- Advantages of Seaborn over Matplotlib
+- Commonly used Seaborn functions
+- Live demonstration (comparison of Seaborn vs. Matplotlib)
+  - Bar plot
+  - Line plot
+  - Scatter plot
+
+For each concept, I want the main explanations provided in markdown cells, followed by one or more Python code cells demonstrating its usage. Keep the text concise—the cells shouldn't exceed 10 lines each.
+
+Use appropriate slideshow types for each cell to make the presentation visually appealing.
 ```
 
-<!-- ## Testing with External Client
+## Testing with External Client
 
-You can test the functionality with the included external client:
+You can test the functionality without using Claude Desktop with the included external client:
 
 ```bash
-uv run python jupyter_ws_external_client.py
+uv run python src/jupyter_ws_external_client.py
 ```
 
 This will provide an interactive menu to test some available functions.
@@ -161,8 +188,8 @@ This will provide an interactive menu to test some available functions.
 For automated testing of all commands:
 
 ```bash
-uv run python jupyter_ws_external_client.py --batch
-``` -->
+uv run python src/jupyter_ws_external_client.py --batch
+```
 
 ## Troubleshooting
 
