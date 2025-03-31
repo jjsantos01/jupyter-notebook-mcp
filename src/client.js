@@ -48,6 +48,19 @@
         }
     };
 
+    function sendError(responseType, request_id, error, logMessage) {
+        var errorResponse = {
+            type: responseType,
+            request_id: request_id,
+            status: "error",
+            source: "notebook",
+            target: "external",
+            message: error.toString()
+        };
+        ws.send(JSON.stringify(errorResponse));
+        console.error(logMessage, error);
+    }
+    
     // Handle inserting and executing a cell
     function handleInsertCell(data) {
         var request_id = data.request_id;
@@ -94,15 +107,7 @@
                 sendResult(); // For other types, send result immediately
             }
         } catch (error) {
-            var errorResponse = {
-                type: "insert_cell_result",
-                request_id: request_id,
-                status: "error",
-                message: error.toString()
-            };
-            
-            ws.send(JSON.stringify(errorResponse));
-            console.error("Error inserting cell:", error);
+            sendError("insert_cell_result", request_id, error, "Error inserting cell:");
         }
     }
 
@@ -125,15 +130,7 @@
             ws.send(JSON.stringify(response));
             console.log("Notebook saved successfully");
         } catch (error) {
-            var errorResponse = {
-                type: "save_result",
-                request_id: request_id,
-                status: "error",
-                message: error.toString()
-            };
-            
-            ws.send(JSON.stringify(errorResponse));
-            console.error("Error saving notebook:", error);
+            sendError("save_result", request_id, error, "Error saving notebook:");
         }
     }
     
@@ -165,15 +162,7 @@
             ws.send(JSON.stringify(response));
             console.log("Sent info for " + cellsInfo.length + " cells");
         } catch (error) {
-            var errorResponse = {
-                type: "cells_info_result",
-                request_id: request_id,
-                status: "error",
-                message: error.toString()
-            };
-            
-            ws.send(JSON.stringify(errorResponse));
-            console.error("Error getting cells info:", error);
+            sendError("cells_info_result", request_id, error, "Error getting cells info:");
         }
     }
 
@@ -203,15 +192,7 @@
             ws.send(JSON.stringify(response));
             console.log("Sent notebook info");
         } catch (error) {
-            var errorResponse = {
-                type: "notebook_info_result",
-                request_id: request_id,
-                status: "error",
-                message: error.toString()
-            };
-            
-            ws.send(JSON.stringify(errorResponse));
-            console.error("Error getting notebook info:", error);
+            sendError("notebook_info_result", request_id, error, "Error getting notebook info:");
         }
     }
     
@@ -256,15 +237,7 @@
             cell.execute();
             
         } catch (error) {
-            var errorResponse = {
-                type: "run_cell_result",
-                request_id: request_id,
-                status: "error",
-                message: error.toString()
-            };
-            
-            ws.send(JSON.stringify(errorResponse));
-            console.error("Error running cell:", error);
+            sendError("run_cell_result", request_id, error, "Error running cell:");
         }
     }    
     
@@ -286,15 +259,7 @@
             ws.send(JSON.stringify(response));
             console.log("Running all cells");
         } catch (error) {
-            var errorResponse = {
-                type: "run_all_cells_result",
-                request_id: request_id,
-                status: "error",
-                message: error.toString()
-            };
-            
-            ws.send(JSON.stringify(errorResponse));
-            console.error("Error running all cells:", error);
+            sendError("run_all_cells_result", request_id, error, "Error running all cells:");
         }
     }
 
@@ -332,15 +297,7 @@
                     (outputContent.is_text_truncated ? " (output truncated)" : "") + 
                     (outputContent.images.length > 0 ? " (contains images)" : ""));
         } catch (error) {
-            var errorResponse = {
-                type: "get_cell_text_output_result",
-                request_id: request_id,
-                status: "error",
-                message: error.toString()
-            };
-            
-            ws.send(JSON.stringify(errorResponse));
-            console.error("Error getting cell output:", error);
+            sendError("get_cell_text_output_result", request_id, error, "Error getting cell output:");
         }
     }
 
@@ -373,15 +330,7 @@
             ws.send(JSON.stringify(response));
             console.log("Cell image output retrieved for index " + index + " (" + outputContent.images.length + " images)");
         } catch (error) {
-            var errorResponse = {
-                type: "get_cell_image_output_result",
-                request_id: request_id,
-                status: "error",
-                message: error.toString()
-            };
-            
-            ws.send(JSON.stringify(errorResponse));
-            console.error("Error getting cell image output:", error);
+            sendError("get_cell_image_output_result", request_id, error, "Error getting cell image output:");
         }
     }
 
@@ -434,17 +383,7 @@
                 sendResult();
             }
         } catch (error) {
-            var errorResponse = {
-                type: "edit_cell_content_result",
-                source: "notebook",
-                target: "external",
-                request_id: request_id,
-                status: "error",
-                message: error.toString()
-            };
-            
-            ws.send(JSON.stringify(errorResponse));
-            console.error("Error updating cell content:", error);
+            sendError("edit_cell_content_result", request_id, error, "Error updating cell content:");
         }
     }
 
@@ -495,17 +434,7 @@
             console.log("Cell slideshow type updated at index " + index + " to " + 
                         (slideshow_type === null ? "default/none" : slideshow_type));
         } catch (error) {
-            var errorResponse = {
-                type: "set_slideshow_type_result",
-                source: "notebook",
-                target: "external",
-                request_id: request_id,
-                status: "error",
-                message: error.toString()
-            };
-            
-            ws.send(JSON.stringify(errorResponse));
-            console.error("Error updating cell slideshow type:", error);
+            sendError("set_slideshow_type_result", request_id, error, "Error updating cell slideshow type:");
         }
     }
 
