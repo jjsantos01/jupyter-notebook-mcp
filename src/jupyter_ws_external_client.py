@@ -1,138 +1,20 @@
 import asyncio
 import websockets
 import json
-import uuid
 import argparse
-from typing import Dict, Any
+from jupyter_ws_client import get_jupyter_client
 
-current_websocket = None
+DEFAULT_CELL_INDEX = 1
 
-
-async def ensure_connected(port=8765):
-    """Asegura que hay una conexión activa al servidor WebSocket, reconectando si es necesario"""
-    global current_websocket
-    
-    # Si no hay conexión o está cerrada, crear una nueva
-    if current_websocket is None or current_websocket.closed:
-        uri = f"ws://localhost:{port}"
-        try:
-            print(f"Conectando a {uri}...")
-            current_websocket = await websockets.connect(uri)
-            
-            # Identificarse como cliente externo
-            init_msg = {"role": "external"}
-            await current_websocket.send(json.dumps(init_msg))
-            print(f"Conectado a {uri} como cliente externo")
-        except Exception as e:
-            print(f"Error al conectar: {e}")
-            current_websocket = None
-            raise
-    
-    return current_websocket
-
-async def send_command(command_type, **kwargs):
-    """send a command to server"""
-    try:
-        websocket = await ensure_connected()
-        request_id = str(uuid.uuid4())
-        
-        request_msg = {
-            "type": command_type,
-            "source": "external",
-            "target": "notebook",
-            "request_id": request_id,
-            **kwargs
-        }
-        
-        await websocket.send(json.dumps(request_msg))
-        print(f"Petición {command_type} enviada con request_id: {request_id}")
-        
-        return await wait_for_response(websocket, request_id)
-    except websockets.exceptions.ConnectionClosed:
-        print("Conexión cerrada. Intentaremos reconectar en el próximo comando.")
-        global current_websocket
-        current_websocket = None
-        raise
-    except Exception as e:
-        print(f"Error al enviar comando: {e}")
-        raise
-
-async def execute_code(code, position=None):
-    """Execute code in the Jupyter notebook"""
-    return await send_command("insert_and_execute_cell",
-                            cell_type="code", 
-                            position=position if position is not None else 0, 
-                            content=code)
-
-async def save_notebook():
-    """Save the current notebook"""
-    return await send_command("save_notebook")
-
-async def get_cells_info():
-    """Get information about all cells in the notebook"""
-    return await send_command("get_cells_info")
-
-async def get_notebook_info():
-    """Get information about the current notebook"""
-    return await send_command("get_notebook_info")
-
-async def run_cell(index):
-    """Run a specific cell by its index"""
-    return await send_command("run_cell", index=index)
-
-async def run_all_cells():
-    """Run all cells in the notebook"""
-    return await send_command("run_all_cells")
-
-async def get_cell_text_output(index, max_length=1500):
-    """Get the output content of a specific cell by its index"""
-    return await send_command("get_cell_text_output", index=index, max_length=max_length)
-
-async def get_image_output(index: int):
-    """Get the image output of a specific cell by its index"""
-    return await send_command("get_cell_image_output", index=index)
-
-async def edit_cell_content(index, content, execute=True):
-    """Edit the content of a specific cell by its index"""
-    return await send_command("edit_cell_content", index=index, content=content, execute=execute)
-
-async def set_slideshow_type(index, slideshow_type="-"):
-    """Set the slideshow type for a specific cell by its index"""
-    return await send_command("set_slideshow_type", index=index, slideshow_type=slideshow_type)
-
-async def wait_for_response(websocket, request_id: str, timeout: int = 60) -> Dict[str, Any]:
-    """Wait for a response with the given request_id or an error"""
-    try:
-        # Configurar un timeout para la espera
-        for _ in range(timeout):
-            try:
-                response = await asyncio.wait_for(websocket.recv(), 1.0)
-                data = json.loads(response)
-                
-                # Verificar si es una respuesta a nuestra petición
-                if data.get("request_id") == request_id:
-                    return data
-                elif data.get("type") == "error" and data.get("request_id") == request_id:
-                    print(f"Error recibido: {data.get('message')}")
-                    return data
-            except asyncio.TimeoutError:
-                # Continuar esperando hasta alcanzar el timeout total
-                continue
-            
-        # Si llegamos aquí, se superó el timeout
-        return {"type": "error", "message": f"Timeout esperando respuesta para request_id: {request_id}"}
-    except websockets.exceptions.ConnectionClosed as e:
-        return {"type": "error", "message": f"Conexión cerrada: {e}"}
-
-async def external_client(port=8765):
-        global current_websocket
+async def external_client(host='localhost', port=8765):
         
         # Intentar la conexión inicial
         try:
-            await ensure_connected(port)
+            client = await get_jupyter_client(host, port)
+            print(f"Conectado al servidor WebSocket en {host}:{port}")
         except Exception as e:
             print(f"Error en la conexión inicial: {e}")
-        
+            return
         # Menú interactivo
         while True:
             print("\n=== CLIENTE DE PRUEBA MCP JUPYTER ===")
@@ -160,44 +42,44 @@ async def external_client(port=8765):
                     position = int(pos_input) if pos_input.strip() else None
                     print("Tipos válidos: slide, subslide, fragment, skip, notes, - (ninguno)")
                     slideshow_type = input("Tipo de slideshow: ")
-                    result = await execute_code(code, position)
+                    result = await client.insert_and_execute_cell("code", position, code, slideshow_type)
                     print("Resultado:", json.dumps(result, indent=2))
                     
                     if slideshow_type.strip() != "":
-                        result_slide = await set_slideshow_type(position, slideshow_type)
+                        result_slide = await client.set_slideshow_type(position, slideshow_type)
                         print("Resultado:", json.dumps(result_slide, indent=2))
                 elif choice == "2":
-                    result = await save_notebook()
+                    result = await client.save_notebook()
                     print("Resultado:", json.dumps(result, indent=2))
                 elif choice == "3":
-                    result = await get_cells_info()
+                    result = await client.get_cells_info()
                     print("Resultado:", json.dumps(result, indent=2))
                 elif choice == "4":
-                    result = await get_notebook_info()
+                    result = await client.get_notebook_info()
                     print("Resultado:", json.dumps(result, indent=2))
                 elif choice == "5":
                     index = int(input("Índice de la celda a ejecutar: "))
-                    result = await run_cell(index)
+                    result = await client.run_cell(index)
                     print("Resultado:", json.dumps(result, indent=2))
                 elif choice == "6":
-                    result = await run_all_cells()
+                    result = await client.run_all_cells()
                     print("Resultado:", json.dumps(result, indent=2))
                 elif choice == "7":
                     index = int(input("Índice de la celda para obtener salida: "))
                     max_len_input = input("Longitud máxima (opcional, presiona Enter para 1500): ")
                     max_length = int(max_len_input) if max_len_input.strip() else 1500
-                    result = await get_cell_text_output(index, max_length)
+                    result = await client.get_cell_text_output(index, max_length)
                     print("Resultado:", json.dumps(result, indent=2))
                 elif choice == "8":
                     index = int(input("Índice de la celda para obtener imágenes: "))
-                    result = await get_image_output(index)
+                    result = await client.get_image_output(index)
                     print("Resultado:", json.dumps(result, indent=2))
                 elif choice == "9":
                     index = int(input("Índice de la celda a editar: "))
                     content = input("Nuevo contenido: ")
                     execute_input = input("¿Ejecutar después de editar? (s/n): ").lower()
                     execute = execute_input.startswith('s')
-                    result = await edit_cell_content(index, content, execute)
+                    result = await client.edit_cell_content(index, content, execute)
                     print("Resultado:", json.dumps(result, indent=2))
                 elif choice == "10":
                     index = int(input("Índice de la celda: "))
@@ -205,7 +87,7 @@ async def external_client(port=8765):
                     slideshow_type = input("Tipo de slideshow: ")
                     if slideshow_type.strip() == "":
                         slideshow_type = "-"
-                    result = await set_slideshow_type(index, slideshow_type)
+                    result = await client.set_slideshow_type(index, slideshow_type)
                     print("Resultado:", json.dumps(result, indent=2))
                 else:
                     print("Opción no válida")
@@ -218,87 +100,87 @@ async def external_client(port=8765):
         if current_websocket and not current_websocket.closed:
             await current_websocket.close()
 
-async def execute_batch_tests(port=8765):
+async def execute_batch_tests(host='localhost', port=8765):
     """Ejecuta una serie de pruebas automáticas para todos los comandos"""
     uri = f"ws://localhost:{port}"
     print(f"Iniciando pruebas automáticas en {uri}")
     
     try:
-        async with websockets.connect(uri) as websocket:
-            # Identificarse como cliente externo
-            init_msg = {"role": "external"}
-            await websocket.send(json.dumps(init_msg))
-            print(f"Conectado a {uri} como cliente externo")
-            
-            # 1. Probar ejecución de código
-            print("\n=== TEST: Ejecutar código ===")
-            code_result = await execute_code("print('Prueba de MCP Jupyter')")
-            print("Resultado:", json.dumps(code_result, indent=2))
-            
-            # 2. Probar obtener info del notebook
-            print("\n=== TEST: Obtener información del notebook ===")
-            notebook_info = await get_notebook_info()
-            print("Resultado:", json.dumps(notebook_info, indent=2))
-            
-            # 3. Probar obtener info de celdas
-            print("\n=== TEST: Obtener información de celdas ===")
-            cells_info = await get_cells_info()
-            print("Resultado:", json.dumps(cells_info, indent=2))
-            
-            # 4. Probar ejecutar celda específica
-            if cells_info.get("status") == "success" and len(cells_info.get("cells", [])) > 0:
-                print("\n=== TEST: Ejecutar celda específica ===")
-                run_cell_result = await run_cell(1)  # Ejecuta la primera celda
-                print("Resultado:", json.dumps(run_cell_result, indent=2))
+        client = await get_jupyter_client(host, port)
+        print(f"Conectado al servidor WebSocket en {host}:{port}")
+        
+        # 1. Probar ejecución de código
+        print("\n=== TEST: Ejecutar código ===")
+        code_result = await client.insert_and_execute_cell("code", DEFAULT_CELL_INDEX, "print('Prueba de MCP Jupyter')")
+        print("Resultado:", json.dumps(code_result, indent=2))
+        
+        # 2. Probar obtener info del notebook
+        print("\n=== TEST: Obtener información del notebook ===")
+        notebook_info = await client.get_notebook_info()
+        print("Resultado:", json.dumps(notebook_info, indent=2))
+        
+        # 3. Probar obtener info de celdas
+        print("\n=== TEST: Obtener información de celdas ===")
+        cells_info = await client.get_cells_info()
+        print("Resultado:", json.dumps(cells_info, indent=2))
+        
+        # 4. Probar ejecutar celda específica
+        if cells_info.get("status") == "success" and len(cells_info.get("cells", [])) > 0:
+            print("\n=== TEST: Ejecutar celda específica ===")
+            run_cell_result = await client.run_cell(DEFAULT_CELL_INDEX)  # Ejecuta la primera celda
+            print("Resultado:", json.dumps(run_cell_result, indent=2))
 
-                print("\n=== TEST: Obtener salida de celda ===")
-                output_result = await get_cell_text_output(0)  # Obtiene salida de la primera celda
-                print("Resultado:", json.dumps(output_result, indent=2))
-            
-            # 5. Probar guardar notebook
-            print("\n=== TEST: Guardar notebook ===")
-            save_result = await save_notebook()
-            print("Resultado:", json.dumps(save_result, indent=2))
-            
-            # 6. Probar ejecutar todas las celdas
-            print("\n=== TEST: Ejecutar todas las celdas ===")
-            run_all_result = await run_all_cells()
-            print("Resultado:", json.dumps(run_all_result, indent=2))
+            print("\n=== TEST: Obtener salida de celda ===")
+            output_result = await client.get_cell_text_output(0)  # Obtiene salida de la primera celda
+            print("Resultado:", json.dumps(output_result, indent=2))
+        
+        # 5. Probar guardar notebook
+        print("\n=== TEST: Guardar notebook ===")
+        save_result = await client.save_notebook()
+        print("Resultado:", json.dumps(save_result, indent=2))
+        
+        # 6. Probar ejecutar todas las celdas
+        print("\n=== TEST: Ejecutar todas las celdas ===")
+        run_all_result = await client.run_all_cells()
+        print("Resultado:", json.dumps(run_all_result, indent=2))
 
-            # 7. Obtener imágenes de una celda
-            print("\n=== TEST: Obtener imagen de una celda ===")
-            code_result = await execute_code(
-                """
+        # 7. Obtener imágenes de una celda
+        print("\n=== TEST: Obtener imagen de una celda ===")
+        code_result = await client.insert_and_execute_cell(
+            "code",
+            DEFAULT_CELL_INDEX,
+            """
 from IPython.display import Image
 Image("../assets/img/notebook-setup.png")
-                """
-            )
-            get_image_output_result = await get_image_output(0)
-            print("Resultado:", json.dumps(get_image_output_result, indent=2))
-            
-            # Edit cell content
-            if cells_info.get("status") == "success" and len(cells_info.get("cells", [])) > 0:
-                print("\n=== TEST: Editar contenido de celda ===")
-                edit_result = await edit_cell_content(1, "# Celda modificada por MCP\nprint('MCP was here :)')")
-                print("Resultado:", json.dumps(edit_result, indent=2))
-            
-            # set slideshow type
-            if cells_info.get("status") == "success" and len(cells_info.get("cells", [])) > 0:
-                print("\n=== TEST: Establecer tipo de slideshow ===")
-                slideshow_result = await set_slideshow_type(1, "slide")
-                print("Resultado:", json.dumps(slideshow_result, indent=2))
+            """
+        )
+        get_image_output_result = await client.get_image_output(DEFAULT_CELL_INDEX)
+        print("Resultado:", json.dumps(get_image_output_result, indent=2))
+        
+        # Edit cell content
+        if cells_info.get("status") == "success" and len(cells_info.get("cells", [])) > 0:
+            print("\n=== TEST: Editar contenido de celda ===")
+            edit_result = await client.edit_cell_content(DEFAULT_CELL_INDEX, "# Celda modificada por MCP\nprint('MCP was here :)')")
+            print("Resultado:", json.dumps(edit_result, indent=2))
+        
+        # set slideshow type
+        if cells_info.get("status") == "success" and len(cells_info.get("cells", [])) > 0:
+            print("\n=== TEST: Establecer tipo de slideshow ===")
+            slideshow_result = await client.set_slideshow_type(DEFAULT_CELL_INDEX, "slide")
+            print("Resultado:", json.dumps(slideshow_result, indent=2))
 
-            print("\n=== TODOS LOS TESTS COMPLETADOS ===")
+        print("\n=== TODOS LOS TESTS COMPLETADOS ===")
     except Exception as e:
         print(f"Error durante las pruebas: {str(e)}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Cliente de prueba para MCP Jupyter")
+    parser.add_argument("--host", type=str, default="localhost", help="Host del servidor WebSocket")
     parser.add_argument("--port", type=int, default=8765, help="Puerto del servidor WebSocket")
     parser.add_argument("--batch", action="store_true", help="Ejecutar pruebas automáticas en lote")
     args = parser.parse_args()
     
     if args.batch:
-        asyncio.run(execute_batch_tests(args.port))
+        asyncio.run(execute_batch_tests(args.host, args.port))
     else:
-        asyncio.run(external_client(args.port))
+        asyncio.run(external_client(args.host, args.port))
