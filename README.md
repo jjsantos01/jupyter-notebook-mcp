@@ -175,6 +175,8 @@ For each concept, I want the main explanations provided in markdown cells, follo
 Use appropriate slideshow types for each cell to make the presentation visually appealing.
 ```
 
+[Check Here the full conversation](https://claude.ai/share/420b6aa6-b84b-437f-a6a6-89d310c36d52)
+
 ## Testing with External Client
 
 You can test the functionality without using Claude Desktop with the included external client:
