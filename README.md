@@ -157,7 +157,7 @@ Ask Claude to perform notebook operations:
 
 ### Python example
 
-You can check the [example notebook](/notebooks/example_notebook.ipynb)
+You can check the [example notebook](/notebooks/example_notebook.ipynb) and the [video demo](https://x.com/jjsantoso/status/1906780778807390562)
 
 ```plain
 You have access to a Jupyter Notebook server.
@@ -196,7 +196,7 @@ import stata_setup
 stata_setup.config('your_stata_installation_directory', 'your_stata_edition')
 ```
 
-You can check the [example notebook](/notebooks/stata_example.ipynb)
+You can check the [example notebook](/notebooks/stata_example.ipynb) and the [video demo](https://x.com/jjsantoso/status/1906780784800731251)
 
 This exercise comes from [Professor John Robert Warren webpage](https://www.rob-warren.com/soc3811_stata_exercises.html)
 
