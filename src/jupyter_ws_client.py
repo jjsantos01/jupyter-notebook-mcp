@@ -52,28 +52,43 @@ class JupyterWebSocketClient:
         """Background task to listen for messages from the WebSocket server"""
         try:
             async for message in self.websocket:
-                data = json.loads(message)
-                
-                request_id = data.get("request_id")
-                if request_id in self.pending_requests:
-                    future = self.pending_requests.pop(request_id)
-                    future.set_result(data)
-                elif data.get("type") == "error" and request_id in self.pending_requests:
-                    # Handle error messages
-                    future = self.pending_requests.pop(request_id)
-                    future.set_exception(Exception(data.get("message", "Unknown error")))
-                else:
-                    logger.warning(f"Received message with unknown request_id: {request_id}")
+                try:
+                    data = json.loads(message)
+                    
+                    # Process messages directed to us (external client)
+                    request_id = data.get("request_id")
+                    if request_id in self.pending_requests:
+                        # Resolve the future with the result
+                        future = self.pending_requests.pop(request_id)
+                        future.set_result(data)
+                    elif data.get("type") == "error" and request_id in self.pending_requests:
+                        # Handle error messages
+                        future = self.pending_requests.pop(request_id)
+                        future.set_exception(Exception(data.get("message", "Unknown error")))
+                except json.JSONDecodeError as e:
+                    logger.error(f"Error decoding JSON from WebSocket: {str(e)}")
         except websockets.exceptions.ConnectionClosed:
             logger.warning("WebSocket connection closed")
             self.connected = False
+            # Reject all pending requests
+            for request_id, future in list(self.pending_requests.items()):
+                if not future.done():
+                    future.set_exception(Exception("WebSocket connection closed"))
+            self.pending_requests.clear()
         except Exception as e:
             logger.error(f"Error in WebSocket listener: {str(e)}")
             self.connected = False
+            # Reject all pending requests
+            for request_id, future in list(self.pending_requests.items()):
+                if not future.done():
+                    future.set_exception(Exception(f"WebSocket listener error: {str(e)}"))
+            self.pending_requests.clear()
 
     async def send_request(self, request_type, **kwargs):
         """Send a request to the Jupyter notebook and get the result"""
+        # First check connection and reconnect if needed
         if not self.connected:
+            logger.info("Connection lost, attempting to reconnect...")
             success = await self.connect()
             if not success:
                 raise Exception("Could not connect to Jupyter WebSocket server")
@@ -94,8 +109,23 @@ class JupyterWebSocketClient:
             **kwargs
         }
         
-        # Send the request
-        await self.websocket.send(json.dumps(request))
+        # Send the request, with retry on connection error
+        try:
+            await self.websocket.send(json.dumps(request))
+        except websockets.exceptions.ConnectionClosed:
+            logger.warning("Connection closed when trying to send request, attempting to reconnect...")
+            self.connected = False
+            success = await self.connect()
+            if not success:
+                self.pending_requests.pop(request_id, None)
+                raise Exception("Connection lost and reconnect failed")
+            
+            # Try sending again
+            try:
+                await self.websocket.send(json.dumps(request))
+            except Exception as e:
+                self.pending_requests.pop(request_id, None)
+                raise Exception(f"Failed to send request after reconnect: {str(e)}")
         
         # Wait for the result with a timeout
         try:
@@ -103,6 +133,9 @@ class JupyterWebSocketClient:
             return result
         except asyncio.TimeoutError:
             self.pending_requests.pop(request_id, None)
+            logger.error(f"Request {request_type} timed out after 60 seconds")
+            # Connection might be stale, mark as disconnected so next request will reconnect
+            self.connected = False
             raise Exception(f"Request {request_type} timed out after 60 seconds")
     
     async def insert_and_execute_cell(

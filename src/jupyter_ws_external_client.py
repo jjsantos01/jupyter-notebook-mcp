@@ -36,6 +36,20 @@ async def external_client(host='localhost', port=8765):
                 break
             
             try:
+                if not client.connected:
+                    print("Connection lost, trying to reconnect...")
+                    try:
+                        await client.connect()
+                        print("Reconnected successfully")
+                    except Exception as e:
+                        print(f"Failed to reconnect: {e}")
+                        # Try to get a new client instance
+                        try:
+                            client = await get_jupyter_client(host, port)
+                            print("Created new client connection")
+                        except Exception as e2:
+                            print(f"Failed to create new connection: {e2}")
+                            continue
                 if choice == "1":
                     code = input("Ingresa el código a ejecutar: ")
                     pos_input = input("Posición (opcional, presiona Enter para final): ")
@@ -97,8 +111,8 @@ async def external_client(host='localhost', port=8765):
             except Exception as e:
                 print(f"Error al ejecutar comando: {e}")
         
-        if current_websocket and not current_websocket.closed:
-            await current_websocket.close()
+        if client.connected:
+            await client.disconnect()
 
 async def execute_batch_tests(host='localhost', port=8765):
     """Ejecuta una serie de pruebas automáticas para todos los comandos"""
