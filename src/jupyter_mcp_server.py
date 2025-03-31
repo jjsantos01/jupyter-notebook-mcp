@@ -18,12 +18,16 @@ logger = logging.getLogger("JupyterMCPServer")
 @asynccontextmanager
 async def server_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
     """Manage server startup and shutdown lifecycle"""
+    import os
+    ws_host = os.environ.get("JUPYTER_WS_HOST", "localhost")
+    ws_port = int(os.environ.get("JUPYTER_WS_PORT", "8765"))
+    
     try:
         logger.info("JupyterMCPServer starting up")
         
         # Try to connect to Jupyter WebSocket server on startup
         try:
-            _ = await get_jupyter_client()
+            await get_jupyter_client(host=ws_host, port=ws_port)
             logger.info("Successfully connected to Jupyter WebSocket server on startup")
         except Exception as e:
             logger.warning(f"Could not connect to Jupyter WebSocket server on startup: {str(e)}")
@@ -32,11 +36,10 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
         yield {}
     finally:
         # Clean up the client on shutdown
-        global _jupyter_client
-        if _jupyter_client:
+        client = await get_jupyter_client(host=ws_host, port=ws_port)
+        if client:
             logger.info("Disconnecting from Jupyter WebSocket server on shutdown")
-            await _jupyter_client.disconnect()
-            _jupyter_client = None
+            await client.disconnect()
         logger.info("JupyterMCPServer shut down")
 
 # Create the MCP server
@@ -257,7 +260,6 @@ def main():
     import os
     import argparse
     
-    # Parse command line arguments
     parser = argparse.ArgumentParser(description="Jupyter MCP Server")
     parser.add_argument("--port", type=int, default=int(os.environ.get("JUPYTER_MCP_PORT", 5000)),
                         help="Port to run the MCP server on")
@@ -266,6 +268,10 @@ def main():
     parser.add_argument("--ws-port", type=int, default=8765,
                         help="Port of the WebSocket server running in Jupyter")
     args = parser.parse_args()
+    
+    # Set environment variables for the lifespan to use
+    os.environ["JUPYTER_WS_HOST"] = args.ws_host
+    os.environ["JUPYTER_WS_PORT"] = str(args.ws_port)
     
     logger.info(f"Starting Jupyter MCP server on port {args.port}")
     logger.info(f"Connecting to Jupyter WebSocket server at {args.ws_host}:{args.ws_port}")
