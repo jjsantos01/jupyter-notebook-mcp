@@ -1,7 +1,7 @@
 [project]
 name = "jupyter-notebook-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Connects Jupyter Notebook to LLM models through MCP protocol"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -9,3 +9,9 @@ dependencies = [
     "notebook>=7.3.3",
     "websockets>=15.0.1",
 ]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"jupyter_notebook_mcp" = ["client.js"]

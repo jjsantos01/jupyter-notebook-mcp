@@ -84,18 +84,20 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
                "command": "uv",
                "args": [
                    "--directory",
-                   "/ABSOLUTE/PATH/TO/PARENT/REPO/FOLDER/src",
+                   "/ABSOLUTE/PATH/TO/PARENT/REPO/FOLDER",
+                   "--with",
+                   ".",
                    "run",
-                   "jupyter_mcp_server.py"
+                   "main.py"
                ]
            }
        }
    }
    ```
 
-   Replace `/ABSOLUTE/PATH/TO/` with the actual path to the `src` folder on your system. For example:
-   - Windows: `"C:\\Users\\MyUser\\GitHub\\jupyter-notebook-mcp\\src\\"`
-   - Mac: `/Users/MyUser/GitHub/jupyter-notebook-mcp/src/`
+   Replace `/ABSOLUTE/PATH/TO/` with the actual path to the repository folder on your system. For example:
+   - Windows: `"C:\\Users\\MyUser\\GitHub\\jupyter-notebook-mcp"`
+   - Mac: `/Users/MyUser/GitHub/jupyter-notebook-mcp`
 
    If you had previously opened Claude, then `File` > `Exit` and open it again.
 
@@ -114,18 +116,11 @@ For other platforms, see the [uv installation guide](https://docs.astral.sh/uv/g
 3. In a notebook cell, run the following code to initialize the WebSocket server:
 
    ```python
-   import sys
-   sys.path.append('/path/to/jupyter-notebook-mcp/src')  # Add the path to where the scripts are located
-   
-   from jupyter_ws_server import setup_jupyter_mcp_integration
+   from jupyter_notebook_mcp.jupyter_ws_server import setup_jupyter_mcp_integration
    
    # Start the WebSocket server inside Jupyter
    server, port = setup_jupyter_mcp_integration()
    ```
-
-   Don't forget to replace here `'/path/to/jupyter-notebook-mcp/src'` with `src` folder on your system. For example:
-   - Windows: `"C:\\Users\\MyUser\\GitHub\\jupyter-notebook-mcp\\src\\"`
-   - Mac: `/Users/MyUser/GitHub/jupyter-notebook-mcp/src/`
 
    ![Notebook setup](/assets/img/notebook-setup.png)
 
@@ -270,7 +265,7 @@ Travel time to work
 You can test the functionality without using Claude Desktop with the included external client:
 
 ```bash
-uv run python src/jupyter_ws_external_client.py
+uv run python src/jupyter_notebook_mcp/jupyter_ws_external_client.py
 ```
 
 This will provide an interactive menu to test some available functions.
@@ -278,7 +273,7 @@ This will provide an interactive menu to test some available functions.
 For automated testing of all commands:
 
 ```bash
-uv run python src/jupyter_ws_external_client.py --batch
+uv run python src/jupyter_notebook_mcp/jupyter_ws_external_client.py --batch
 ```
 
 ## Troubleshooting
